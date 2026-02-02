@@ -53,7 +53,11 @@ async function downloadWithYtdlp(url: string, downloadDir: string): Promise<stri
 }
 
 async function downloadWithFetch(url: string, downloadDir: string): Promise<string> {
-	const response = await fetch(url);
+	const refer: Record<string, string> = {};
+	if(url.includes('https://v3-web.douyinvod.com/')){
+		refer['Referer'] = 'https://www.douyin.com/';
+	}
+	const response = await fetch(url, { headers: refer });
 	if (!response.ok) {
 		throw new Error(`Fetch failed: ${response.status} ${response.statusText}`);
 	}
@@ -86,7 +90,10 @@ export const POST: APIRoute = async ({ request }) => {
 		const downloadDir = path.join(ALLOWED_ROOT, 'data', 'downloads');
 		await fs.mkdir(downloadDir, { recursive: true });
 
-		const filePath = isYtdlpUrl(url)
+		const isytdlp = isYtdlpUrl(url);
+		const downloadMethod = isytdlp ? 'yt-dlp' : 'fetch';
+		console.log(`Downloading using method: ${downloadMethod}`);
+		const filePath = isytdlp
 			? await downloadWithYtdlp(url, downloadDir)
 			: await downloadWithFetch(url, downloadDir);
 
@@ -106,6 +113,7 @@ export const POST: APIRoute = async ({ request }) => {
 		const newEntry: DatasetEntry = {
 			media_path: relativePath,
 			caption: '',
+			source_url: url,
 		};
 
 		entries.push(newEntry);

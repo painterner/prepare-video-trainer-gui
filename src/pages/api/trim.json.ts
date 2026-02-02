@@ -168,6 +168,8 @@ export const POST: APIRoute = async ({ request }) => {
 			JSON.stringify({
 				audio: path.relative(baseDir, audioOutPath),
 				video: videoOutPath ? path.relative(baseDir, videoOutPath) : null,
+				audioPath: audioOutPath,
+				videoPath: videoOutPath,
 				datasetPath,
 			}),
 			{ headers: { 'Content-Type': 'application/json' } }

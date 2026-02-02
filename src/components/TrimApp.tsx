@@ -124,7 +124,14 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 			const savedPaths = [data.audio, data.video].filter(Boolean).join(' | ');
 			setSaveStatus(`已保存: ${savedPaths}`);
 			const newItems = [...items];
-			newItems[currentIndex].processed = true;
+			newItems[currentIndex] = {
+				...newItems[currentIndex],
+				processed: true,
+				processed_audio_path: data.audioPath,
+				processed_video_path: data.videoPath || undefined,
+				processed_audio_pos: [Number(refStart), Number(refEnd)],
+				processed_video_pos: videoEnd ? [Number(videoStart), Number(videoEnd)] : null,
+			};
 			setItems(newItems);
 		} catch (error: any) {
 			setSaveStatus(error.message || '裁剪失败');
