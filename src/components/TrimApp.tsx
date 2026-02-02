@@ -281,20 +281,20 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 			{/* Right Panel - Media */}
 			<div className="flex-1 bg-[#141a26] border border-[#2a3244] rounded-xl p-4 overflow-hidden">
 				<div className="grid grid-cols-[1fr_320px] gap-4 h-full">
-					<div className="flex flex-col">
+					<div className="flex flex-col h-full overflow-hidden">
 						<video
 							id="main-video"
 							controls
 							preload="metadata"
 							onLoadedMetadata={handleVideoLoaded}
 							src={currentItem?.resolved_media_path ? `/api/media?path=${encodeURIComponent(currentItem.resolved_media_path)}` : ''}
-							className="w-full max-h-[calc(100vh-200px)] rounded-xl bg-black object-contain"
+							className="w-full flex-1 min-h-0 rounded-xl bg-black object-contain"
 						/>
-						<div className="text-xs text-[#a9b2c3] mt-3">
+						<div className="text-xs text-[#a9b2c3] mt-3 flex-shrink-0">
 							#{currentIndex} {currentItem?.processed ? '[已处理]' : ''} {currentItem?.media_path ?? '未选择条目'}
 						</div>
 
-						<div className="flex gap-2 mt-3">
+						<div className="flex gap-2 mt-3 flex-shrink-0">
 							<button onClick={() => selectIndex(currentIndex - 1)} className="px-3 py-2 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3]">
 								上一个
 							</button>
