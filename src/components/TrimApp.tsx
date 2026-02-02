@@ -305,17 +305,17 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 						</div>
 
 						<div className="flex gap-2 mt-3 flex-shrink-0">
-							<button onClick={() => selectIndex(currentIndex - 1)} className="px-3 py-2 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3]">
+							<button onClick={() => selectIndex(currentIndex - 1)} className="px-3 py-2 cursor-pointer rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3]">
 								上一个
 							</button>
-							<button onClick={() => selectIndex(currentIndex + 1)} className="px-3 py-2 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3]">
+							<button onClick={() => selectIndex(currentIndex + 1)} className="px-3 py-2 cursor-pointer rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3]">
 								下一个
 							</button>
 						</div>
 					</div>
 
-					<div className="flex flex-col gap-3">
-						<div className="bg-[#1b2232] rounded-lg p-2.5 flex flex-col gap-2">
+					<div className="flex flex-col gap-3 h-full overflow-hidden">
+						<div className="bg-[#1b2232] rounded-lg p-2.5 flex flex-col gap-2 flex-shrink-0">
 							<div className="text-xs text-[#a9b2c3]">处理后音频</div>
 							{currentItem?.processed && currentItem.processed_audio_path ? (
 							<>
@@ -326,12 +326,12 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 								<div className="text-xs text-[#a9b2c3]">无</div>
 							)}
 						</div>
-						<div className="flex-1 bg-[#1b2232] rounded-lg p-2.5 flex flex-col gap-2 min-h-0">
-							<div className="text-xs text-[#a9b2c3]">处理后视频</div>
+						<div className="flex-1 bg-[#1b2232] rounded-lg p-2.5 flex flex-col gap-2 min-h-0 overflow-hidden">
+							<div className="text-xs text-[#a9b2c3] flex-shrink-0">处理后视频</div>
 							{currentItem?.processed && currentItem.processed_video_path ? (
 							<>
-								<div className="text-xs text-[#a9b2c3] break-all">{currentItem.processed_video_path}</div>
-								<video controls preload="metadata" src={`/api/media?path=${encodeURIComponent(currentItem.processed_video_path)}`} className="w-full max-h-full rounded-lg bg-black" />
+								<div className="text-xs text-[#a9b2c3] break-all flex-shrink-0">{currentItem.processed_video_path}</div>
+								<video controls preload="metadata" src={`/api/media?path=${encodeURIComponent(currentItem.processed_video_path)}`} className="w-full flex-1 min-h-0 rounded-lg bg-black object-contain" />
 							</>
 							) : (
 								<div className="text-xs text-[#a9b2c3]">无</div>
