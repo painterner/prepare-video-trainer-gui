@@ -121,7 +121,8 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 			if (!response.ok) {
 				throw new Error(data.error || '裁剪失败');
 			}
-			setSaveStatus(`已保存: ${data.audio}`);
+			const savedPaths = [data.audio, data.video].filter(Boolean).join(' | ');
+			setSaveStatus(`已保存: ${savedPaths}`);
 			const newItems = [...items];
 			newItems[currentIndex].processed = true;
 			setItems(newItems);
@@ -273,7 +274,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 						>
 							<div className="text-sm">{item.caption || item.media_path || '未命名条目'}</div>
 							<div className="text-xs text-[#a9b2c3]">
-								#{index} {item.media_path ?? ''}
+								#{index}{item.caption && item.media_path ? ` ${item.media_path}` : ''}
 							</div>
 							<span
 								className={`inline-block px-1.5 py-0.5 rounded-full text-[11px] ml-1.5 ${

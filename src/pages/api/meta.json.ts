@@ -14,6 +14,7 @@ type MetaEntry = {
 type DatasetEntry = {
 	meta_index?: number;
 	media_path?: string;
+	caption?: string;
 	reference_audio_column?: string;
 	reference_audio_pos?: [number, number];
 	video_pos?: [number, number] | null;
@@ -40,7 +41,7 @@ export const GET: APIRoute = async ({ url }) => {
 		} catch {
 			// ignore missing dataset.jsonl
 		}
-
+    
 		const metaEntries = parseJsonl<MetaEntry>(metaText).map((entry, index) => {
 			const processedData = processedMap.get(index);
 			const isProcessed = entry.processed === true;
@@ -49,6 +50,10 @@ export const GET: APIRoute = async ({ url }) => {
 				...entry,
 				meta_index: index,
 				_meta_path: metaPath,
+				// 已处理的条目优先使用 dataset.jsonl 中的 caption
+				caption: isProcessed && processedData?.caption
+					? processedData.caption
+					: entry.caption,
 				resolved_media_path:
 					entry.media_path && typeof entry.media_path === 'string'
 						? resolveMediaPath(metaPath, entry.media_path)
