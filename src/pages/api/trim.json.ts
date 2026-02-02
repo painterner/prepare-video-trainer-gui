@@ -120,6 +120,7 @@ export const POST: APIRoute = async ({ request }) => {
 				'192k',
 				videoOutput,
 			];
+            console.log("cutting video with args:", videoArgs.join(' '));
 			await runFfmpeg(videoArgs);
 		}
 
