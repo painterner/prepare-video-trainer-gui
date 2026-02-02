@@ -16,10 +16,51 @@ const defaultMetaPath = import.meta.env.DATASET_META_PATH ?? "/home/ka/all-ref/M
 	<body class="m-0 bg-[#0b0f17] text-[#e7ecf3]">
 		<header class="px-6 py-5 bg-[#141a26] border-b border-[#2a3244]">
 			<h1 class="text-xl font-semibold m-0 mb-2">LTX-2 参考音频 / 尾段视频裁剪</h1>
-			<p class="text-[#a9b2c3] text-[13px] m-0">
-				读取 dataset_meta.jsonl，标记参考音频区间与视频尾段，输出 dataset.jsonl。
-			</p>
+			<div class="flex items-center gap-2 mt-2">
+				<input
+					type="text"
+					id="download-url"
+					placeholder="输入视频 URL"
+					class="flex-1 max-w-md px-2.5 py-1.5 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3] text-sm"
+				/>
+				<button
+					id="download-btn"
+					class="px-3 py-1.5 rounded-lg bg-[#4f8cff] text-white text-sm cursor-pointer"
+				>
+					下载
+				</button>
+				<span id="download-status" class="text-[#a9b2c3] text-xs"></span>
+			</div>
 		</header>
+		<script>
+			const downloadBtn = document.getElementById('download-btn');
+			const downloadUrl = document.getElementById('download-url') as HTMLInputElement;
+			const downloadStatus = document.getElementById('download-status');
+
+			downloadBtn?.addEventListener('click', async () => {
+				const url = downloadUrl?.value?.trim();
+				if (!url) {
+					if (downloadStatus) downloadStatus.textContent = '请输入 URL';
+					return;
+				}
+				if (downloadStatus) downloadStatus.textContent = '下载中...';
+				try {
+					const response = await fetch('/api/download.json', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ url }),
+					});
+					const data = await response.json();
+					if (!response.ok) {
+						throw new Error(data.error || '下载失败');
+					}
+					if (downloadStatus) downloadStatus.textContent = `已下载: ${data.filename}`;
+					downloadUrl.value = '';
+				} catch (error: any) {
+					if (downloadStatus) downloadStatus.textContent = error.message || '下载失败';
+				}
+			});
+		</script>
 		<main>
 			<TrimApp client:load defaultMetaPath={defaultMetaPath} />
 		</main>
