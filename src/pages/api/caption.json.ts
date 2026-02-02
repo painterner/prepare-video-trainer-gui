@@ -47,6 +47,7 @@ export const POST: APIRoute = async ({ request }) => {
 				datasetEntries[existingIndex] = {
 					...datasetEntries[existingIndex],
 					caption: body.caption,
+					captionCaptureType: 'manual',
 				};
 				await fs.writeFile(datasetPath, serializeJsonl(datasetEntries), 'utf-8');
 			}

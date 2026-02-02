@@ -306,7 +306,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 									: 'border-transparent bg-[#1b2232]'
 							}`}
 						>
-							<div className="text-sm">{item.caption || item.media_path || '未命名条目'}</div>
+							<div className="text-sm truncate">{item.caption || item.media_path || '未命名条目'}</div>
 							<div className="text-xs text-[#a9b2c3]">
 								#{index}{item.caption && item.media_path ? ` ${item.media_path}` : ''}
 							</div>
@@ -336,6 +336,10 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 						/>
 						<div className="text-xs text-[#a9b2c3] mt-3 flex-shrink-0">
 							#{currentIndex} {currentItem?.processed ? '[已处理]' : ''} {currentItem?.media_path ?? '未选择条目'}
+						</div>
+
+						<div className="text-xs text-[#a9b2c3] mt-2 flex-shrink-0 line-clamp-5 break-all">
+							{currentItem?.caption || '无 caption'}
 						</div>
 
 						<div className="flex gap-2 mt-3 flex-shrink-0">
