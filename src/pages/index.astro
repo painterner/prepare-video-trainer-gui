@@ -1,17 +1,27 @@
 ---
-
+import "../styles/global.css";
+import TrimApp from "../components/TrimApp";
+const defaultMetaPath = import.meta.env.DATASET_META_PATH ?? "/home/ka/all-ref/MY_LTX-2/data/dataset_meta.jsonl";
 ---
 
-<html lang="en">
+<html lang="zh-CN">
 	<head>
 		<meta charset="utf-8" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<link rel="icon" href="/favicon.ico" />
 		<meta name="viewport" content="width=device-width" />
 		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
+		<title>LTX-2 Trim GUI</title>
 	</head>
-	<body>
-		<h1>Astro</h1>
+	<body class="m-0 bg-[#0b0f17] text-[#e7ecf3]">
+		<header class="px-6 py-5 bg-[#141a26] border-b border-[#2a3244]">
+			<h1 class="text-xl font-semibold m-0 mb-2">LTX-2 参考音频 / 尾段视频裁剪</h1>
+			<p class="text-[#a9b2c3] text-[13px] m-0">
+				读取 dataset_meta.jsonl，标记参考音频区间与视频尾段，输出 dataset.jsonl。
+			</p>
+		</header>
+		<main>
+			<TrimApp client:load defaultMetaPath={defaultMetaPath} />
+		</main>
 	</body>
 </html>

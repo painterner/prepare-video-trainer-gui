@@ -1,43 +1,21 @@
-# Astro Starter Kit: Minimal
+# LTX-2 Trim GUI
+
+本项目提供一个本地 Astro GUI，用于读取 `dataset_meta.jsonl`，标记参考音频区间与视频裁剪区间，并输出 `dataset.jsonl`。
+
+## 运行方式
 
 ```sh
-npm create astro@latest -- --template minimal
+npm install
+npm run dev
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+默认在 `http://localhost:4321` 访问。
 
-## 🚀 Project Structure
+## 环境变量
 
-Inside of your Astro project, you'll see the following folders and files:
+- `LTX_ROOT`：允许访问的根路径，默认 `/home/ka/all-ref/MY_LTX-2`
+- `DATASET_META_PATH`：默认 `dataset_meta.jsonl` 路径
 
-```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
-```
+## 输出
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
-
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
-
-Any static assets, like images, can be placed in the `public/` directory.
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+处理结果将写入 `dataset.jsonl`，并在 `dataset_processed/audio` 和 `dataset_processed/video` 下生成裁剪结果。
