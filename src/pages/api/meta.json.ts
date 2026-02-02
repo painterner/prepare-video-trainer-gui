@@ -12,9 +12,11 @@ type MetaEntry = {
 };
 
 type DatasetEntry = {
+	meta_index?: number;
 	media_path?: string;
 	reference_audio_column?: string;
 	reference_audio_pos?: [number, number];
+	video_pos?: [number, number] | null;
 	[Key: string]: unknown;
 };
 
@@ -24,14 +26,16 @@ export const GET: APIRoute = async ({ url }) => {
 		const metaText = await fs.readFile(metaPath, 'utf-8');
 		const baseDir = path.dirname(metaPath);
 		
-		// 加载 dataset.jsonl 获取处理后的媒体路径
+		// 加载 dataset.jsonl 获取处理后的媒体路径，使用 meta_index 作为 key
 		const datasetPath = path.join(baseDir, 'dataset.jsonl');
 		const processedMap = new Map<number, DatasetEntry>();
 		try {
 			const datasetText = await fs.readFile(datasetPath, 'utf-8');
 			const datasetEntries = parseJsonl<DatasetEntry>(datasetText);
-			datasetEntries.forEach((entry, index) => {
-				processedMap.set(index, entry);
+			datasetEntries.forEach((entry) => {
+				if (typeof entry.meta_index === 'number') {
+					processedMap.set(entry.meta_index, entry);
+				}
 			});
 		} catch {
 			// ignore missing dataset.jsonl
@@ -59,6 +63,9 @@ export const GET: APIRoute = async ({ url }) => {
 					: null,
 				processed_audio_pos: isProcessed && processedData?.reference_audio_pos
 					? processedData.reference_audio_pos
+					: null,
+				processed_video_pos: isProcessed && processedData?.video_pos
+					? processedData.video_pos
 					: null,
 			};
 		});

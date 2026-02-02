@@ -9,6 +9,7 @@ interface MetaItem {
 	processed_video_path?: string;
 	processed_audio_path?: string;
 	processed_audio_pos?: [number, number];
+	processed_video_pos?: [number, number] | null;
 }
 
 interface TrimAppProps {
@@ -64,13 +65,21 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 				setRefStart(item.processed_audio_pos[0].toFixed(2));
 				setRefEnd(item.processed_audio_pos[1].toFixed(2));
 			}
+			if (item.processed_video_pos && Array.isArray(item.processed_video_pos)) {
+				setVideoStart(item.processed_video_pos[0].toFixed(2));
+				setVideoEnd(item.processed_video_pos[1].toFixed(2));
+				setVideoStartManuallySet(true);
+			} else {
+				setVideoStart('');
+				setVideoEnd('');
+			}
 		} else {
 			setSaveStatus('就绪');
 			setRefStart('0');
 			setRefEnd('');
+			setVideoStart('');
+			setVideoEnd('');
 		}
-		setVideoStart('');
-		setVideoEnd('');
 	};
 
 	const handleVideoLoaded = (e: React.SyntheticEvent<HTMLVideoElement>) => {

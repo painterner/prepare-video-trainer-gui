@@ -134,15 +134,25 @@ export const POST: APIRoute = async ({ request }) => {
 		}
 
 		const outputEntry = {
+			meta_index: body.index,
 			media_path: videoOutPath
 				? path.relative(baseDir, videoOutPath)
 				: path.relative(baseDir, sourcePath),
 			caption: typeof entry.caption === 'string' ? entry.caption : '',
 			reference_audio_column: path.relative(baseDir, audioOutPath),
 			reference_audio_pos: [Number(refStart.toFixed(3)), Number(refEnd.toFixed(3))],
+			video_pos: typeof videoEnd === 'number' ? [Number(videoStart.toFixed(3)), Number(videoEnd.toFixed(3))] : null,
 		};
 
-		existingEntries.push(outputEntry);
+		// 查找是否已存在相同 meta_index 的记录，存在则更新，不存在则追加
+		const existingIndex = existingEntries.findIndex(
+			(e) => e.meta_index === body.index
+		);
+		if (existingIndex >= 0) {
+			existingEntries[existingIndex] = outputEntry;
+		} else {
+			existingEntries.push(outputEntry);
+		}
 		const newText = serializeJsonl(existingEntries as unknown[]);
 		await fs.writeFile(datasetPath, newText, 'utf-8');
 
