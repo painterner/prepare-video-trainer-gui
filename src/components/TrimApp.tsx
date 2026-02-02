@@ -29,6 +29,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 	const [videoStartManuallySet, setVideoStartManuallySet] = useState(false);
 	const [videoDuration, setVideoDuration] = useState(0);
 	const [previewInterval, setPreviewInterval] = useState<NodeJS.Timeout | null>(null);
+	const [captionInput, setCaptionInput] = useState('');
 
 	const currentItem = currentIndex >= 0 && currentIndex < items.length ? items[currentIndex] : null;
 
@@ -59,6 +60,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 		setVideoStartManuallySet(false);
 
 		const item = items[index];
+		setCaptionInput(item.caption || '');
 		if (item.processed) {
 			setSaveStatus('已处理 - 显示处理后媒体');
 			if (item.processed_audio_pos && Array.isArray(item.processed_audio_pos)) {
@@ -145,6 +147,31 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 		setVideoEnd(videoDuration && Number.isFinite(videoDuration) ? videoDuration.toFixed(2) : '');
 		setVideoStartManuallySet(false);
 		setSaveStatus('已清空');
+	};
+
+	const handleCaptionSave = async () => {
+		if (currentIndex < 0) return;
+		try {
+			const response = await fetch('/api/caption.json', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					metaPath,
+					index: currentIndex,
+					caption: captionInput,
+				}),
+			});
+			const data = await response.json();
+			if (!response.ok) {
+				throw new Error(data.error || '保存失败');
+			}
+			const newItems = [...items];
+			newItems[currentIndex] = { ...newItems[currentIndex], caption: captionInput };
+			setItems(newItems);
+			setSaveStatus('Caption 已保存');
+		} catch (error: any) {
+			setSaveStatus(error.message || '保存 caption 失败');
+		}
 	};
 
 	useEffect(() => {
@@ -318,6 +345,14 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 							<button onClick={() => selectIndex(currentIndex + 1)} className="px-3 py-2 cursor-pointer rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3]">
 								下一个
 							</button>
+							<input
+								type="text"
+								placeholder="Caption (回车保存)"
+								value={captionInput}
+								onChange={(e) => setCaptionInput(e.target.value)}
+								onKeyDown={(e) => e.key === 'Enter' && handleCaptionSave()}
+								className="flex-1 px-2.5 py-2 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3] text-sm"
+							/>
 						</div>
 					</div>
 
