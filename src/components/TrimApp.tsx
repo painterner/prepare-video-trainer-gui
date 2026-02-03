@@ -175,6 +175,32 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 		}
 	};
 
+	const handleDelete = async (index: number, e: React.MouseEvent) => {
+		e.stopPropagation();
+		if (!confirm('确定删除此条目？')) return;
+		try {
+			const response = await fetch('/api/delete.json', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ metaPath, index }),
+			});
+			const data = await response.json();
+			if (!response.ok) {
+				throw new Error(data.error || '删除失败');
+			}
+			const newItems = items.filter((_, i) => i !== index);
+			setItems(newItems);
+			if (currentIndex >= newItems.length) {
+				setCurrentIndex(newItems.length - 1);
+			} else if (currentIndex === index) {
+				selectIndex(Math.min(index, newItems.length - 1));
+			}
+			setSaveStatus('已删除');
+		} catch (error: any) {
+			setSaveStatus(error.message || '删除失败');
+		}
+	};
+
 	useEffect(() => {
 		const stored = localStorage.getItem('ltx-meta-path');
 		if (stored) setMetaPath(stored);
@@ -307,7 +333,15 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 									: 'border-transparent bg-[#1b2232]'
 							}`}
 						>
-							<div className="text-sm truncate">{item.caption || item.media_path || '未命名条目'}</div>
+							<div className="flex justify-between items-start">
+								<div className="text-sm truncate flex-1">{item.caption || item.media_path || '未命名条目'}</div>
+								<button
+									onClick={(e) => handleDelete(index, e)}
+									className="text-[#ff6b6b] text-xs hover:text-[#ff4757] ml-2"
+								>
+									删除
+								</button>
+							</div>
 							<div className="text-xs text-[#a9b2c3]">
 								#{index}{item.caption && item.media_path ? ` ${item.media_path}` : ''}
 							</div>
