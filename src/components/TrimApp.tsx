@@ -125,12 +125,13 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 			}
 			const savedPaths = [data.audio, data.video].filter(Boolean).join(' | ');
 			setSaveStatus(`已保存: ${savedPaths}`);
+			const timestamp = Date.now();
 			const newItems = [...items];
 			newItems[currentIndex] = {
 				...newItems[currentIndex],
 				processed: true,
-				processed_audio_path: data.audioPath,
-				processed_video_path: data.videoPath || undefined,
+				processed_audio_path: data.audioPath ? `${data.audioPath}?t=${timestamp}` : undefined,
+				processed_video_path: data.videoPath ? `${data.videoPath}?t=${timestamp}` : undefined,
 				processed_audio_pos: [Number(refStart), Number(refEnd)],
 				processed_video_pos: videoEnd ? [Number(videoStart), Number(videoEnd)] : null,
 			};

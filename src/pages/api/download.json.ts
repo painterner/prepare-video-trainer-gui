@@ -34,7 +34,7 @@ function isYtdlpUrl(url: string): boolean {
 
 async function downloadWithYtdlp(url: string, downloadDir: string): Promise<string> {
 	const outputTemplate = path.join(downloadDir, '%(title)s.%(ext)s');
-	const { stdout } = await execFileAsync('yt-dlp', [
+	const { stdout } = await execFileAsync('python3', ['scripts/yt-dlp.py',
 		'--print', 'filename',
 		'-o', outputTemplate,
 		'--no-playlist',
@@ -43,7 +43,7 @@ async function downloadWithYtdlp(url: string, downloadDir: string): Promise<stri
 
 	const expectedPath = stdout.trim();
 
-	await execFileAsync('yt-dlp', [
+	await execFileAsync('python3', ['scripts/yt-dlp.py',
 		'-o', outputTemplate,
 		'--no-playlist',
 		url,

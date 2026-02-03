@@ -19,9 +19,14 @@ const MIME_BY_EXT: Record<string, string> = {
 
 export const GET: APIRoute = async ({ request, url }) => {
 	try {
-		const inputPath = url.searchParams.get('path');
+		let inputPath = url.searchParams.get('path');
 		if (!inputPath) {
 			return new Response('Missing path', { status: 400 });
+		}
+		// Remove query string from path if present (e.g., ?t=123 for cache busting)
+		const queryIndex = inputPath.indexOf('?');
+		if (queryIndex !== -1) {
+			inputPath = inputPath.substring(0, queryIndex);
 		}
 		const filePath = resolveInRoot(inputPath);
 		const stat = await fs.stat(filePath);
