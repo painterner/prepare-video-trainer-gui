@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import fs from 'fs/promises';
 import path from 'path';
+import crypto from 'crypto';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { parseJsonl, serializeJsonl } from '../../lib/server/jsonl';
@@ -36,6 +37,11 @@ function toNumber(value: unknown): number {
 
 async function runFfmpeg(args: string[]): Promise<void> {
 	await execFileAsync('ffmpeg', args, { windowsHide: true });
+}
+
+async function computeFileHash(filePath: string): Promise<string> {
+	const buffer = await fs.readFile(filePath);
+	return crypto.createHash('md5').update(buffer).digest('hex');
 }
 
 export const POST: APIRoute = async ({ request }) => {
@@ -133,6 +139,11 @@ export const POST: APIRoute = async ({ request }) => {
 			// ignore missing dataset.jsonl
 		}
 
+		// Compute file hashes
+		const originVideoHash = await computeFileHash(sourcePath);
+		const processedAudioHash = await computeFileHash(audioOutPath);
+		const processedVideoHash = videoOutPath ? await computeFileHash(videoOutPath) : null;
+
 		const outputEntry = {
 			meta_index: body.index,
 			media_path: videoOutPath
@@ -142,6 +153,9 @@ export const POST: APIRoute = async ({ request }) => {
 			reference_audio_column: path.relative(baseDir, audioOutPath),
 			reference_audio_pos: [Number(refStart.toFixed(3)), Number(refEnd.toFixed(3))],
 			video_pos: typeof videoEnd === 'number' ? [Number(videoStart.toFixed(3)), Number(videoEnd.toFixed(3))] : null,
+			origin_video_hash: originVideoHash,
+			processed_audio_hash: processedAudioHash,
+			processed_video_hash: processedVideoHash,
 		};
 
 		// 查找是否已存在相同 meta_index 的记录，存在则更新，不存在则追加

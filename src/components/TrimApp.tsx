@@ -458,10 +458,10 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 													setShowCaptionEditor(false);
 												}
 											}}
-											className="w-full h-40 px-3 py-2 rounded-lg border border-[#2a3244] bg-[#0b0f17] text-[#e7ecf3] text-sm font-mono resize-none"
+											className="w-full h-120 px-3 py-2 rounded-lg border border-[#2a3244] bg-[#0b0f17] text-[#e7ecf3] text-sm font-mono resize-none"
 											placeholder="输入 caption..."
 										/>
-										<div className="absolute top-0 left-0 right-0 h-40 px-3 py-2 pointer-events-none overflow-hidden text-sm font-mono whitespace-pre-wrap break-all text-transparent">
+										<div className="absolute top-0 left-0 right-0 h-120 px-3 py-2 pointer-events-none overflow-hidden text-sm font-mono whitespace-pre-wrap break-all text-transparent">
 											<HighlightedText text={captionInput} />
 										</div>
 									</div>
