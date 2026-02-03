@@ -231,6 +231,26 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 		}
 	};
 
+	const handleCopy = async (index: number, e: React.MouseEvent) => {
+		e.stopPropagation();
+		try {
+			const response = await fetch('/api/copy.json', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ metaPath, index }),
+			});
+			const data = await response.json();
+			if (!response.ok) {
+				throw new Error(data.error || '复制失败');
+			}
+			// Reload to get new items
+			await loadMeta();
+			setSaveStatus(`已复制到 #${data.newIndex}`);
+		} catch (error: any) {
+			setSaveStatus(error.message || '复制失败');
+		}
+	};
+
 	// Close popover when clicking outside
 	useEffect(() => {
 		const handleClickOutside = (e: MouseEvent) => {
@@ -378,15 +398,23 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 						>
 							<div className="flex justify-between items-start">
 								<div className="text-sm truncate flex-1">{item.caption || item.media_path || '未命名条目'}</div>
-								<button
-									onClick={(e) => handleDelete(index, e)}
-									className="text-[#ff6b6b] text-xs hover:text-[#ff4757] ml-2"
-								>
-									删除
-								</button>
+								<div className="flex gap-2 ml-2">
+									<button
+										onClick={(e) => handleCopy(index, e)}
+										className="text-[#4f8cff] text-xs hover:text-[#3d7ae8]"
+									>
+										复制
+									</button>
+									<button
+										onClick={(e) => handleDelete(index, e)}
+										className="text-[#ff6b6b] text-xs hover:text-[#ff4757]"
+									>
+										删除
+									</button>
+								</div>
 							</div>
 							<div className="text-xs text-[#a9b2c3]">
-								#{index}{item.caption && item.media_path ? ` ${item.media_path}` : ''}
+								#{index}{item.caption && item.media_path ? ` ${item.media_path}` : ''}{(item as any).copied_from !== undefined ? ` (复制自 #${(item as any).copied_from})` : ''}
 							</div>
 							<span
 								className={`inline-block px-1.5 py-0.5 rounded-full text-[11px] ml-1.5 ${
