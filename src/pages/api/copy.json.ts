@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import fs from 'fs/promises';
+import path from 'path';
 import { parseJsonl, serializeJsonl } from '../../lib/server/jsonl';
 import { resolveMetaPath } from '../../lib/server/paths';
 
@@ -39,11 +40,27 @@ export const POST: APIRoute = async ({ request }) => {
 			copied_from: body.index,
 		};
 
-		// Append to the end of dataset_meta.jsonl
-		metaEntries.push(newEntry);
+		// Insert after the original entry
+		const newIndex = body.index + 1;
+		metaEntries.splice(newIndex, 0, newEntry);
 		await fs.writeFile(metaPath, serializeJsonl(metaEntries), 'utf-8');
 
-		const newIndex = metaEntries.length - 1;
+		// Update meta_index in dataset.jsonl for entries after the insertion point
+		const baseDir = path.dirname(metaPath);
+		const datasetPath = path.join(baseDir, 'dataset.jsonl');
+		try {
+			const datasetText = await fs.readFile(datasetPath, 'utf-8');
+			const datasetEntries = parseJsonl<Record<string, unknown>>(datasetText);
+			const updatedEntries = datasetEntries.map((e) => {
+				if (typeof e.meta_index === 'number' && e.meta_index >= newIndex) {
+					return { ...e, meta_index: e.meta_index + 1 };
+				}
+				return e;
+			});
+			await fs.writeFile(datasetPath, serializeJsonl(updatedEntries), 'utf-8');
+		} catch {
+			// dataset.jsonl doesn't exist yet, skip
+		}
 
 		return new Response(
 			JSON.stringify({ success: true, newIndex }),
