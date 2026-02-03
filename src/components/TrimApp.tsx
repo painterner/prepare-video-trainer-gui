@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface MetaItem {
 	meta_index: number;
@@ -16,6 +16,34 @@ interface TrimAppProps {
 	defaultMetaPath: string;
 }
 
+// Simple syntax highlighting for prompt text
+function HighlightedText({ text }: { text: string }) {
+	// Highlight patterns: [brackets], {braces}, <angles>, "quotes", numbers
+	const parts = text.split(/(\[[^\]]*\]|\{[^}]*\}|<[^>]*>|"[^"]*"|\b\d+\.?\d*\b)/g);
+	return (
+		<>
+			{parts.map((part, i) => {
+				if (part.startsWith('[') && part.endsWith(']')) {
+					return <span key={i} className="text-[#f1c40f]">{part}</span>;
+				}
+				if (part.startsWith('{') && part.endsWith('}')) {
+					return <span key={i} className="text-[#e74c3c]">{part}</span>;
+				}
+				if (part.startsWith('<') && part.endsWith('>')) {
+					return <span key={i} className="text-[#9b59b6]">{part}</span>;
+				}
+				if (part.startsWith('"') && part.endsWith('"')) {
+					return <span key={i} className="text-[#2ecc71]">{part}</span>;
+				}
+				if (/^\d+\.?\d*$/.test(part)) {
+					return <span key={i} className="text-[#3498db]">{part}</span>;
+				}
+				return <span key={i}>{part}</span>;
+			})}
+		</>
+	);
+}
+
 export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 	const [metaPath, setMetaPath] = useState(defaultMetaPath);
 	const [items, setItems] = useState<MetaItem[]>([]);
@@ -30,6 +58,8 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 	const [videoDuration, setVideoDuration] = useState(0);
 	const [previewInterval, setPreviewInterval] = useState<NodeJS.Timeout | null>(null);
 	const [captionInput, setCaptionInput] = useState('');
+	const [showCaptionEditor, setShowCaptionEditor] = useState(false);
+	const editorRef = useRef<HTMLDivElement>(null);
 
 	const currentItem = currentIndex >= 0 && currentIndex < items.length ? items[currentIndex] : null;
 
@@ -200,6 +230,19 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 			setSaveStatus(error.message || '删除失败');
 		}
 	};
+
+	// Close popover when clicking outside
+	useEffect(() => {
+		const handleClickOutside = (e: MouseEvent) => {
+			if (editorRef.current && !editorRef.current.contains(e.target as Node)) {
+				setShowCaptionEditor(false);
+			}
+		};
+		if (showCaptionEditor) {
+			document.addEventListener('mousedown', handleClickOutside);
+		}
+		return () => document.removeEventListener('mousedown', handleClickOutside);
+	}, [showCaptionEditor]);
 
 	useEffect(() => {
 		const stored = localStorage.getItem('ltx-meta-path');
@@ -374,10 +417,10 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 						</div>
 
 						<div className="text-xs text-[#a9b2c3] mt-2 flex-shrink-0 line-clamp-5 break-all">
-							{currentItem?.caption || '无 caption'}
+							<HighlightedText text={currentItem?.caption || '无 caption'} />
 						</div>
 
-						<div className="flex gap-2 mt-3 flex-shrink-0">
+						<div className="flex gap-2 mt-3 flex-shrink-0 relative">
 							<button onClick={() => selectIndex(currentIndex - 1)} className="px-3 py-2 cursor-pointer rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3]">
 								上一个
 							</button>
@@ -392,6 +435,56 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 								onKeyDown={(e) => e.key === 'Enter' && handleCaptionSave()}
 								className="flex-1 px-2.5 py-2 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3] text-sm"
 							/>
+							<button
+								onClick={() => setShowCaptionEditor(!showCaptionEditor)}
+								className="px-3 py-2 cursor-pointer rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3]"
+								title="编辑 Caption"
+							>
+								✎
+							</button>
+							{showCaptionEditor && (
+								<div
+									ref={editorRef}
+									className="absolute bottom-full left-0 right-0 mb-2 bg-[#1b2232] border border-[#2a3244] rounded-xl p-3 shadow-xl z-50"
+								>
+									<div className="text-xs text-[#a9b2c3] mb-2">Caption 编辑器 (Ctrl+Enter 保存)</div>
+									<div className="relative">
+										<textarea
+											value={captionInput}
+											onChange={(e) => setCaptionInput(e.target.value)}
+											onKeyDown={(e) => {
+												if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+													handleCaptionSave();
+													setShowCaptionEditor(false);
+												}
+											}}
+											className="w-full h-40 px-3 py-2 rounded-lg border border-[#2a3244] bg-[#0b0f17] text-[#e7ecf3] text-sm font-mono resize-none"
+											placeholder="输入 caption..."
+										/>
+										<div className="absolute top-0 left-0 right-0 h-40 px-3 py-2 pointer-events-none overflow-hidden text-sm font-mono whitespace-pre-wrap break-all text-transparent">
+											<HighlightedText text={captionInput} />
+										</div>
+									</div>
+									<div className="flex justify-between mt-2">
+										<div className="text-xs text-[#a9b2c3]">
+											<span className="text-[#f1c40f]">[方括号]</span>{' '}
+											<span className="text-[#e74c3c]">{'{花括号}'}</span>{' '}
+											<span className="text-[#9b59b6]">{'<尖括号>'}</span>{' '}
+											<span className="text-[#2ecc71]">"引号"</span>{' '}
+											<span className="text-[#3498db]">数字</span>
+										</div>
+										<button
+											onClick={() => {
+												handleCaptionSave();
+												setShowCaptionEditor(false);
+											}}
+											className="px-3 py-1 rounded-lg bg-[#4f8cff] text-white text-sm"
+										>
+											保存
+										</button>
+									</div>
+								</div>
+							)}
 						</div>
 					</div>
 
