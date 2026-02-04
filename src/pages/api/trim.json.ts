@@ -23,6 +23,12 @@ type TrimRequest = {
 	videoStart?: number;
 	videoEnd?: number;
 	outputDir?: string;
+	crop?: {
+		x: number;
+		y: number;
+		w: number;
+		h: number;
+	};
 };
 
 function toNumber(value: unknown): number {
@@ -106,6 +112,13 @@ export const POST: APIRoute = async ({ request }) => {
 		if (typeof videoEnd === 'number') {
 			const videoOutput = path.join(videoDir, `${sourceStem}_trim.mp4`);
 			videoOutPath = videoOutput;
+			
+			// Build video filter for crop if specified
+			const videoFilters: string[] = [];
+			if (body.crop && body.crop.w > 0 && body.crop.h > 0) {
+				videoFilters.push(`crop=${body.crop.w}:${body.crop.h}:${body.crop.x}:${body.crop.y}`);
+			}
+			
 			const videoArgs = [
 				'-y',
 				'-ss',
@@ -114,6 +127,13 @@ export const POST: APIRoute = async ({ request }) => {
 				`${videoEnd}`,
 				'-i',
 				sourcePath,
+			];
+			
+			if (videoFilters.length > 0) {
+				videoArgs.push('-vf', videoFilters.join(','));
+			}
+			
+			videoArgs.push(
 				'-c:v',
 				'libx264',
 				'-preset',
@@ -125,7 +145,7 @@ export const POST: APIRoute = async ({ request }) => {
 				'-b:a',
 				'192k',
 				videoOutput,
-			];
+			);
             console.log("cutting video with args:", videoArgs.join(' '));
 			await runFfmpeg(videoArgs);
 		}
@@ -153,6 +173,7 @@ export const POST: APIRoute = async ({ request }) => {
 			reference_audio_column: path.relative(baseDir, audioOutPath),
 			reference_audio_pos: [Number(refStart.toFixed(3)), Number(refEnd.toFixed(3))],
 			video_pos: typeof videoEnd === 'number' ? [Number(videoStart.toFixed(3)), Number(videoEnd.toFixed(3))] : null,
+			video_crop: body.crop ? { x: body.crop.x, y: body.crop.y, w: body.crop.w, h: body.crop.h } : null,
 			origin_video_hash: originVideoHash,
 			processed_audio_hash: processedAudioHash,
 			processed_video_hash: processedVideoHash,

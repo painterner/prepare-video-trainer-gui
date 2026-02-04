@@ -55,11 +55,19 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 	const [videoStart, setVideoStart] = useState('');
 	const [videoEnd, setVideoEnd] = useState('');
 	const [videoStartManuallySet, setVideoStartManuallySet] = useState(false);
+	const [videoEndManuallySet, setVideoEndManuallySet] = useState(false);
 	const [videoDuration, setVideoDuration] = useState(0);
 	const [previewInterval, setPreviewInterval] = useState<NodeJS.Timeout | null>(null);
 	const [captionInput, setCaptionInput] = useState('');
 	const [showCaptionEditor, setShowCaptionEditor] = useState(false);
 	const editorRef = useRef<HTMLDivElement>(null);
+	const videoContainerRef = useRef<HTMLDivElement>(null);
+	
+	// Crop selection state
+	const [cropRect, setCropRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+	const [isDrawing, setIsDrawing] = useState(false);
+	const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
+	const [videoSize, setVideoSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
 
 	const currentItem = currentIndex >= 0 && currentIndex < items.length ? items[currentIndex] : null;
 
@@ -88,9 +96,11 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 		if (index < 0 || index >= items.length) return;
 		setCurrentIndex(index);
 		setVideoStartManuallySet(false);
+		setVideoEndManuallySet(false);
 
 		const item = items[index];
 		setCaptionInput(item.caption || '');
+		setCropRect(null); // Reset crop when changing item
 		if (item.processed) {
 			setSaveStatus('已处理 - 显示处理后媒体');
 			if (item.processed_audio_pos && Array.isArray(item.processed_audio_pos)) {
@@ -101,6 +111,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 				setVideoStart(item.processed_video_pos[0].toFixed(2));
 				setVideoEnd(item.processed_video_pos[1].toFixed(2));
 				setVideoStartManuallySet(true);
+				setVideoEndManuallySet(true);
 			} else {
 				setVideoStart('');
 				setVideoEnd('');
@@ -117,7 +128,9 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 	const handleVideoLoaded = (e: React.SyntheticEvent<HTMLVideoElement>) => {
 		const video = e.currentTarget;
 		setVideoDuration(video.duration);
-		if (video.duration && Number.isFinite(video.duration)) {
+		setVideoSize({ width: video.videoWidth, height: video.videoHeight });
+		// Only set videoEnd to duration if not manually set (i.e., when loading a non-processed item)
+		if (!videoEndManuallySet && video.duration && Number.isFinite(video.duration)) {
 			setVideoEnd(video.duration.toFixed(2));
 		}
 	};
@@ -136,7 +149,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 		}
 		setSaveStatus('正在裁剪...');
 		try {
-			const payload = {
+			const payload: Record<string, unknown> = {
 				metaPath,
 				index: currentIndex,
 				refStart: Number(refStart),
@@ -144,6 +157,15 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 				videoStart: Number(videoStart || 0),
 				videoEnd: videoEnd ? Number(videoEnd) : null,
 			};
+			// Add crop info if set
+			if (cropRect && videoSize.width > 0 && videoSize.height > 0) {
+				payload.crop = {
+					x: Math.round(cropRect.x),
+					y: Math.round(cropRect.y),
+					w: Math.round(cropRect.w),
+					h: Math.round(cropRect.h),
+				};
+			}
 			const response = await fetch('/api/trim.json', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -177,7 +199,52 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 		setVideoStart('');
 		setVideoEnd(videoDuration && Number.isFinite(videoDuration) ? videoDuration.toFixed(2) : '');
 		setVideoStartManuallySet(false);
+		setVideoEndManuallySet(false);
+		setCropRect(null);
 		setSaveStatus('已清空');
+	};
+
+	// Crop drawing handlers
+	const getVideoCoords = (e: React.MouseEvent<HTMLDivElement>) => {
+		const container = videoContainerRef.current;
+		const video = document.getElementById('main-video') as HTMLVideoElement;
+		if (!container || !video) return null;
+		
+		const rect = video.getBoundingClientRect();
+		const scaleX = videoSize.width / rect.width;
+		const scaleY = videoSize.height / rect.height;
+		
+		const x = (e.clientX - rect.left) * scaleX;
+		const y = (e.clientY - rect.top) * scaleY;
+		
+		return { x: Math.max(0, Math.min(x, videoSize.width)), y: Math.max(0, Math.min(y, videoSize.height)) };
+	};
+
+	const handleCropMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+		if (e.button !== 0) return; // Only left click
+		const coords = getVideoCoords(e);
+		if (!coords) return;
+		setIsDrawing(true);
+		setDrawStart(coords);
+		setCropRect(null);
+	};
+
+	const handleCropMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+		if (!isDrawing || !drawStart) return;
+		const coords = getVideoCoords(e);
+		if (!coords) return;
+		
+		const x = Math.min(drawStart.x, coords.x);
+		const y = Math.min(drawStart.y, coords.y);
+		const w = Math.abs(coords.x - drawStart.x);
+		const h = Math.abs(coords.y - drawStart.y);
+		
+		setCropRect({ x, y, w, h });
+	};
+
+	const handleCropMouseUp = () => {
+		setIsDrawing(false);
+		setDrawStart(null);
 	};
 
 	const handleCaptionSave = async () => {
@@ -432,16 +499,63 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 			<div className="flex-1 bg-[#141a26] border border-[#2a3244] rounded-xl p-4 overflow-hidden">
 				<div className="grid grid-cols-[1fr_320px] gap-4 h-full">
 					<div className="flex flex-col h-full overflow-hidden">
-						<video
-							id="main-video"
-							controls
-							preload="metadata"
-							onLoadedMetadata={handleVideoLoaded}
-							src={currentItem?.resolved_media_path ? `/api/media?path=${encodeURIComponent(currentItem.resolved_media_path)}` : ''}
-							className="w-full flex-1 min-h-0 rounded-xl bg-black object-contain"
-						/>
+						<div 
+							ref={videoContainerRef}
+							className="relative flex-1 min-h-0"
+							onMouseDown={handleCropMouseDown}
+							onMouseMove={handleCropMouseMove}
+							onMouseUp={handleCropMouseUp}
+							onMouseLeave={handleCropMouseUp}
+						>
+							<video
+								id="main-video"
+								controls
+								preload="metadata"
+								onLoadedMetadata={handleVideoLoaded}
+								src={currentItem?.resolved_media_path ? `/api/media?path=${encodeURIComponent(currentItem.resolved_media_path)}` : ''}
+								className="w-full h-full rounded-xl bg-black object-contain"
+							/>
+							{/* Crop overlay */}
+							{cropRect && videoSize.width > 0 && (
+								<div 
+									className="absolute pointer-events-none"
+									style={{
+										top: 0,
+										left: 0,
+										right: 0,
+										bottom: 0,
+									}}
+								>
+									{(() => {
+										const video = document.getElementById('main-video') as HTMLVideoElement;
+										if (!video) return null;
+										const rect = video.getBoundingClientRect();
+										const containerRect = videoContainerRef.current?.getBoundingClientRect();
+										if (!containerRect) return null;
+										
+										const scaleX = rect.width / videoSize.width;
+										const scaleY = rect.height / videoSize.height;
+										const offsetX = rect.left - containerRect.left;
+										const offsetY = rect.top - containerRect.top;
+										
+										return (
+											<div
+												className="absolute border-2 border-[#4f8cff] bg-[#4f8cff]/20"
+												style={{
+													left: offsetX + cropRect.x * scaleX,
+													top: offsetY + cropRect.y * scaleY,
+													width: cropRect.w * scaleX,
+													height: cropRect.h * scaleY,
+												}}
+											/>
+										);
+									})()}
+								</div>
+							)}
+						</div>
 						<div className="text-xs text-[#a9b2c3] mt-3 flex-shrink-0">
 							#{currentIndex} {currentItem?.processed ? '[已处理]' : ''} {currentItem?.media_path ?? '未选择条目'}
+							{cropRect && ` | 裁剪区域: ${Math.round(cropRect.x)},${Math.round(cropRect.y)} ${Math.round(cropRect.w)}x${Math.round(cropRect.h)}`}
 						</div>
 
 						<div className="text-xs text-[#a9b2c3] mt-2 flex-shrink-0 line-clamp-5 break-all">
