@@ -10,6 +10,8 @@ const execFileAsync = promisify(execFile);
 
 type DownloadRequest = {
 	url: string;
+	startTime?: string;
+	endTime?: string;
 };
 
 type DatasetEntry = {
@@ -32,27 +34,50 @@ function isYtdlpUrl(url: string): boolean {
 	}
 }
 
-async function downloadWithYtdlp(url: string, downloadDir: string): Promise<string> {
+// Parse time string like "1:30" or "90" to seconds
+function parseTimeToSeconds(time: string): number {
+	const parts = time.split(':').map(Number);
+	if (parts.length === 1) return parts[0];
+	if (parts.length === 2) return parts[0] * 60 + parts[1];
+	if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+	return 0;
+}
+
+async function downloadWithYtdlp(url: string, downloadDir: string, startTime?: string, endTime?: string): Promise<string> {
 	const outputTemplate = path.join(downloadDir, '%(title)s.%(ext)s');
-	const { stdout } = await execFileAsync('python3', ['scripts/yt-dlp.py',
+	
+	const baseArgs = [
 		'--print', 'filename',
 		'-o', outputTemplate,
 		'--no-playlist',
-		url,
-	], { windowsHide: true });
-
+	];
+	
+	// Add time range if specified
+	if (startTime || endTime) {
+		const start = startTime || '0';
+		const end = endTime || 'inf';
+		baseArgs.push('--download-sections', `*${start}-${end}`);
+	}
+	
+	const { stdout } = await execFileAsync('python3', ['scripts/yt-dlp.py', ...baseArgs, url], { windowsHide: true });
 	const expectedPath = stdout.trim();
 
-	await execFileAsync('python3', ['scripts/yt-dlp.py',
+	const downloadArgs = [
 		'-o', outputTemplate,
 		'--no-playlist',
-		url,
-	], { windowsHide: true });
+	];
+	if (startTime || endTime) {
+		const start = startTime || '0';
+		const end = endTime || 'inf';
+		downloadArgs.push('--download-sections', `*${start}-${end}`);
+	}
+	
+	await execFileAsync('python3', ['scripts/yt-dlp.py', ...downloadArgs, url], { windowsHide: true });
 
 	return expectedPath;
 }
 
-async function downloadWithFetch(url: string, downloadDir: string): Promise<string> {
+async function downloadWithFetch(url: string, downloadDir: string, startTime?: string, endTime?: string): Promise<string> {
 	const refer: Record<string, string> = {};
 	if(url.includes('https://v3-web.douyinvod.com/')){
 		refer['Referer'] = 'https://www.douyin.com/';
@@ -76,6 +101,30 @@ async function downloadWithFetch(url: string, downloadDir: string): Promise<stri
 	const buffer = Buffer.from(await response.arrayBuffer());
 	await fs.writeFile(filePath, buffer);
 
+	// If time range specified, use ffmpeg to trim
+	if (startTime || endTime) {
+		const startSec = startTime ? parseTimeToSeconds(startTime) : 0;
+		const endSec = endTime ? parseTimeToSeconds(endTime) : undefined;
+		
+		const trimmedFilename = filename.replace(/(\.[^.]+)$/, '_trimmed$1');
+		const trimmedPath = path.join(downloadDir, trimmedFilename);
+		
+		const ffmpegArgs = ['-y', '-i', filePath];
+		if (startSec > 0) {
+			ffmpegArgs.push('-ss', `${startSec}`);
+		}
+		if (endSec !== undefined) {
+			ffmpegArgs.push('-to', `${endSec}`);
+		}
+		ffmpegArgs.push('-c', 'copy', trimmedPath);
+		
+		await execFileAsync('ffmpeg', ffmpegArgs, { windowsHide: true });
+		
+		// Remove original and return trimmed path
+		await fs.unlink(filePath);
+		return trimmedPath;
+	}
+
 	return filePath;
 }
 
@@ -92,14 +141,14 @@ export const POST: APIRoute = async ({ request }) => {
 
 		const isytdlp = isYtdlpUrl(url);
 		const downloadMethod = isytdlp ? 'yt-dlp' : 'fetch';
-		console.log(`Downloading using method: ${downloadMethod}`);
+		console.log(`Downloading using method: ${downloadMethod}, startTime: ${body.startTime}, endTime: ${body.endTime}`);
 		const filePath = isytdlp
-			? await downloadWithYtdlp(url, downloadDir)
-			: await downloadWithFetch(url, downloadDir);
+			? await downloadWithYtdlp(url, downloadDir, body.startTime, body.endTime)
+			: await downloadWithFetch(url, downloadDir, body.startTime, body.endTime);
 
 		const filename = path.basename(filePath);
 
-		// Add to dataset.jsonl
+		// Add to dataset_meta.jsonl
 		const datasetPath = path.join(ALLOWED_ROOT, 'data', 'dataset_meta.jsonl');
 		let entries: DatasetEntry[] = [];
 		try {
@@ -114,6 +163,7 @@ export const POST: APIRoute = async ({ request }) => {
 			media_path: relativePath,
 			caption: '',
 			source_url: url,
+			download_range: (body.startTime || body.endTime) ? { start: body.startTime || '0', end: body.endTime || 'end' } : undefined,
 		};
 
 		entries.push(newEntry);

@@ -498,10 +498,10 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 			{/* Right Panel - Media */}
 			<div className="flex-1 bg-[#141a26] border border-[#2a3244] rounded-xl p-4 overflow-hidden">
 				<div className="grid grid-cols-[1fr_320px] gap-4 h-full">
-					<div className="flex flex-col h-full overflow-hidden">
+					<div className="flex flex-col h-full overflow-hidden items-center">
 						<div 
 							ref={videoContainerRef}
-							className="relative flex-1 min-h-0"
+							className="relative flex-1 min-h-0 flex items-center justify-center"
 							onMouseDown={handleCropMouseDown}
 							onMouseMove={handleCropMouseMove}
 							onMouseUp={handleCropMouseUp}
@@ -513,7 +513,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 								preload="metadata"
 								onLoadedMetadata={handleVideoLoaded}
 								src={currentItem?.resolved_media_path ? `/api/media?path=${encodeURIComponent(currentItem.resolved_media_path)}` : ''}
-								className="w-full h-full rounded-xl bg-black object-contain"
+								className="max-w-full max-h-full rounded-xl bg-black"
 							/>
 							{/* Crop overlay */}
 							{cropRect && videoSize.width > 0 && (

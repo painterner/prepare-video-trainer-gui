@@ -22,6 +22,18 @@ const defaultMetaPath = import.meta.env.DATASET_META_PATH ?? "/home/ka/all-ref/M
 				placeholder="输入视频 URL"
 				class="flex-1 max-w-md px-2.5 py-1.5 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3] text-sm"
 			/>
+			<input
+				type="text"
+				id="download-start"
+				placeholder="起始 (如 1:00)"
+				class="w-24 px-2.5 py-1.5 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3] text-sm"
+			/>
+			<input
+				type="text"
+				id="download-end"
+				placeholder="结束 (如 5:00)"
+				class="w-24 px-2.5 py-1.5 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3] text-sm"
+			/>
 			<button
 				id="download-btn"
 				class="px-3 py-1.5 rounded-lg bg-[#4f8cff] text-white text-sm cursor-pointer"
@@ -33,6 +45,8 @@ const defaultMetaPath = import.meta.env.DATASET_META_PATH ?? "/home/ka/all-ref/M
 		<script>
 			const downloadBtn = document.getElementById('download-btn');
 			const downloadUrl = document.getElementById('download-url') as HTMLInputElement;
+			const downloadStart = document.getElementById('download-start') as HTMLInputElement;
+			const downloadEnd = document.getElementById('download-end') as HTMLInputElement;
 			const downloadStatus = document.getElementById('download-status');
 
 			downloadBtn?.addEventListener('click', async () => {
@@ -43,10 +57,16 @@ const defaultMetaPath = import.meta.env.DATASET_META_PATH ?? "/home/ka/all-ref/M
 				}
 				if (downloadStatus) downloadStatus.textContent = '下载中...';
 				try {
+					const payload: Record<string, string> = { url };
+					const startTime = downloadStart?.value?.trim();
+					const endTime = downloadEnd?.value?.trim();
+					if (startTime) payload.startTime = startTime;
+					if (endTime) payload.endTime = endTime;
+					
 					const response = await fetch('/api/download.json', {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ url }),
+						body: JSON.stringify(payload),
 					});
 					const data = await response.json();
 					if (!response.ok) {
@@ -54,6 +74,8 @@ const defaultMetaPath = import.meta.env.DATASET_META_PATH ?? "/home/ka/all-ref/M
 					}
 					if (downloadStatus) downloadStatus.textContent = `已下载: ${data.filename}`;
 					downloadUrl.value = '';
+					downloadStart.value = '';
+					downloadEnd.value = '';
 				} catch (error: any) {
 					if (downloadStatus) downloadStatus.textContent = error.message || '下载失败';
 				}
