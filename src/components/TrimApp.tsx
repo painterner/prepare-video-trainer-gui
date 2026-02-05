@@ -60,6 +60,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 	const [previewInterval, setPreviewInterval] = useState<NodeJS.Timeout | null>(null);
 	const [captionInput, setCaptionInput] = useState('');
 	const [showCaptionEditor, setShowCaptionEditor] = useState(false);
+	const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
 	const editorRef = useRef<HTMLDivElement>(null);
 	const videoContainerRef = useRef<HTMLDivElement>(null);
 	
@@ -295,6 +296,34 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 			setSaveStatus('已删除');
 		} catch (error: any) {
 			setSaveStatus(error.message || '删除失败');
+		}
+	};
+
+	const handleGenerateCaption = async () => {
+		if (!currentItem?.processed_video_path) {
+			setSaveStatus('请先处理视频');
+			return;
+		}
+		setIsGeneratingCaption(true);
+		setSaveStatus('AI 正在生成 caption...');
+		try {
+			const response = await fetch('/api/generate-caption.json', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					videoPath: currentItem.processed_video_path.split('?')[0], // Remove timestamp
+				}),
+			});
+			const data = await response.json();
+			if (!response.ok) {
+				throw new Error(data.error || '生成失败');
+			}
+			setCaptionInput(data.caption);
+			setSaveStatus('AI caption 已生成，请检查后保存');
+		} catch (error: any) {
+			setSaveStatus(error.message || '生成 caption 失败');
+		} finally {
+			setIsGeneratingCaption(false);
 		}
 	};
 
@@ -583,6 +612,18 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 								title="编辑 Caption"
 							>
 								✎
+							</button>
+							<button
+								onClick={handleGenerateCaption}
+								disabled={isGeneratingCaption || !currentItem?.processed_video_path}
+								className={`px-3 py-2 cursor-pointer rounded-lg border border-[#2a3244] text-sm ${
+									isGeneratingCaption || !currentItem?.processed_video_path
+										? 'bg-[#1b2232] text-[#666] cursor-not-allowed'
+										: 'bg-[#9b59b6] text-white hover:bg-[#8e44ad]'
+								}`}
+								title="AI 生成 Caption"
+							>
+								{isGeneratingCaption ? '...' : 'AI'}
 							</button>
 							{showCaptionEditor && (
 								<div
