@@ -67,9 +67,7 @@ export const POST: APIRoute = async ({ request }) => {
 
 		const refStart = toNumber(body.refStart);
 		const refEnd = toNumber(body.refEnd);
-		if (!Number.isFinite(refStart) || !Number.isFinite(refEnd) || refEnd <= refStart) {
-			throw new Error('Invalid reference audio start/end');
-		}
+		const hasAudioTrim = Number.isFinite(refStart) && Number.isFinite(refEnd) && refEnd > refStart;
 
 		const videoStart = Number.isFinite(toNumber(body.videoStart))
 			? toNumber(body.videoStart)
@@ -77,6 +75,11 @@ export const POST: APIRoute = async ({ request }) => {
 		const videoEnd = Number.isFinite(toNumber(body.videoEnd))
 			? toNumber(body.videoEnd)
 			: undefined;
+
+		// Must have either audio or video trim
+		if (!hasAudioTrim && typeof videoEnd !== 'number') {
+			throw new Error('请设置音频区间或视频区间');
+		}
 
 		const baseDir = path.dirname(metaPath);
 		const outputRoot = body.outputDir ? resolveInRoot(body.outputDir) : path.join(baseDir, 'dataset_processed');
@@ -87,26 +90,31 @@ export const POST: APIRoute = async ({ request }) => {
 
 		const sourcePath = resolveMediaPath(metaPath, entry.media_path);
 		const sourceStem = path.parse(sourcePath).name;
-		const audioOutPath = path.join(audioDir, `${sourceStem}_ref.mp3`);
-
-		const audioArgs = [
-			'-y',
-			'-ss',
-			`${refStart}`,
-			'-to',
-			`${refEnd}`,
-			'-i',
-			sourcePath,
-			'-vn',
-			'-ac',
-			'1',
-			'-ar',
-			'44100',
-			'-b:a',
-			'192k',
-			audioOutPath,
-		];
-		await runFfmpeg(audioArgs);
+		
+		let audioOutPath: string | null = null;
+		
+		// Only process audio if valid range is set
+		if (hasAudioTrim) {
+			audioOutPath = path.join(audioDir, `${sourceStem}_ref.mp3`);
+			const audioArgs = [
+				'-y',
+				'-ss',
+				`${refStart}`,
+				'-to',
+				`${refEnd}`,
+				'-i',
+				sourcePath,
+				'-vn',
+				'-ac',
+				'1',
+				'-ar',
+				'44100',
+				'-b:a',
+				'192k',
+				audioOutPath,
+			];
+			await runFfmpeg(audioArgs);
+		}
 
 		let videoOutPath: string | null = null;
 		if (typeof videoEnd === 'number') {
@@ -161,17 +169,18 @@ export const POST: APIRoute = async ({ request }) => {
 
 		// Compute file hashes
 		const originVideoHash = await computeFileHash(sourcePath);
-		const processedAudioHash = await computeFileHash(audioOutPath);
+		const processedAudioHash = audioOutPath ? await computeFileHash(audioOutPath) : null;
 		const processedVideoHash = videoOutPath ? await computeFileHash(videoOutPath) : null;
 
-		const outputEntry = {
+		const outputEntry: Record<string, unknown> = {
 			meta_index: body.index,
 			media_path: videoOutPath
 				? path.relative(baseDir, videoOutPath)
 				: path.relative(baseDir, sourcePath),
 			caption: typeof entry.caption === 'string' ? entry.caption : '',
-			reference_audio_column: path.relative(baseDir, audioOutPath),
-			reference_audio_pos: [Number(refStart.toFixed(3)), Number(refEnd.toFixed(3))],
+			has_reference_audio: hasAudioTrim,
+			reference_audio_column: audioOutPath ? path.relative(baseDir, audioOutPath) : null,
+			reference_audio_pos: hasAudioTrim ? [Number(refStart.toFixed(3)), Number(refEnd.toFixed(3))] : null,
 			video_pos: typeof videoEnd === 'number' ? [Number(videoStart.toFixed(3)), Number(videoEnd.toFixed(3))] : null,
 			video_crop: body.crop ? { x: body.crop.x, y: body.crop.y, w: body.crop.w, h: body.crop.h } : null,
 			origin_video_hash: originVideoHash,
@@ -201,7 +210,7 @@ export const POST: APIRoute = async ({ request }) => {
 
 		return new Response(
 			JSON.stringify({
-				audio: path.relative(baseDir, audioOutPath),
+				audio: audioOutPath ? path.relative(baseDir, audioOutPath) : null,
 				video: videoOutPath ? path.relative(baseDir, videoOutPath) : null,
 				audioPath: audioOutPath,
 				videoPath: videoOutPath,
