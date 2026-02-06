@@ -857,10 +857,18 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 							{showCaptionEditor && (
 								<div
 									ref={editorRef}
-									className="absolute bottom-full left-0 right-0 mb-2 bg-[#1b2232] border border-[#2a3244] rounded-xl p-3 shadow-xl z-50"
+									className="fixed bg-[#1b2232] border border-[#2a3244] rounded-xl p-3 shadow-2xl"
+									style={{ 
+										width: '600px', 
+										zIndex: 9999,
+										bottom: 'auto',
+										left: '50%',
+										top: '50%',
+										transform: 'translate(-50%, -50%)'
+									}}
 								>
 									<div className="text-xs text-[#a9b2c3] mb-2">Caption 编辑器 (Ctrl+Enter 保存)</div>
-									<div className="relative bg-[#0b0f17] rounded-lg border border-[#2a3244] overflow-auto" style={{ height: '180px' }}>
+									<div className="relative bg-[#0b0f17] rounded-lg border border-[#2a3244] overflow-auto" style={{ height: '270px' }}>
 										<HighlightedEditor
 											value={captionInput}
 											onChange={setCaptionInput}
@@ -876,7 +884,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 										/>
 									</div>
 									<div className="text-xs text-[#a9b2c3] mt-3 mb-2">Speech (Whisper 转录)</div>
-									<div className="relative" style={{ height: '60px' }}>
+									<div className="relative" style={{ height: '90px' }}>
 										<textarea
 											value={speechInput}
 											onChange={(e) => setSpeechInput(e.target.value)}
