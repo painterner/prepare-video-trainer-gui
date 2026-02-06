@@ -8,11 +8,13 @@ type CaptionRequest = {
 	metaPath?: string;
 	index: number;
 	caption: string;
+	speech?: string;
 };
 
 type MetaEntry = {
 	media_path?: string;
 	caption?: string;
+	speech?: string;
 	[key: string]: unknown;
 };
 
@@ -27,10 +29,11 @@ export const POST: APIRoute = async ({ request }) => {
 			throw new Error('Index out of range');
 		}
 
-		// Update caption in dataset_meta.jsonl
+		// Update caption and speech in dataset_meta.jsonl
 		metaEntries[body.index] = {
 			...metaEntries[body.index],
 			caption: body.caption,
+			speech: body.speech,
 		};
 		await fs.writeFile(metaPath, serializeJsonl(metaEntries), 'utf-8');
 
@@ -47,6 +50,7 @@ export const POST: APIRoute = async ({ request }) => {
 				datasetEntries[existingIndex] = {
 					...datasetEntries[existingIndex],
 					caption: body.caption,
+					speech: body.speech,
 					captionCaptureType: 'manual',
 				};
 				await fs.writeFile(datasetPath, serializeJsonl(datasetEntries), 'utf-8');

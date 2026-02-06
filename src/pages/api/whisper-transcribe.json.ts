@@ -3,12 +3,15 @@ import fs from 'fs/promises';
 import path from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { resolveInRoot } from '../../lib/server/paths';
+import { resolveInRoot, resolveMetaPath } from '../../lib/server/paths';
+import { parseJsonl, serializeJsonl } from '../../lib/server/jsonl';
 
 const execFileAsync = promisify(execFile);
 
 type WhisperTranscribeRequest = {
 	videoPath: string;
+	metaPath?: string;
+	index: number;
 };
 
 export const POST: APIRoute = async ({ request }) => {
@@ -99,6 +102,42 @@ export const POST: APIRoute = async ({ request }) => {
 		// Extract transcription text
 		const transcription = result.output?.transcription || result.output?.text || 
 			(typeof result.output === 'string' ? result.output : JSON.stringify(result.output));
+
+		// Save speech to dataset_meta.jsonl and dataset.jsonl
+		if (typeof body.index === 'number') {
+			const metaPath = resolveMetaPath(body.metaPath);
+			const metaText = await fs.readFile(metaPath, 'utf-8');
+			const metaEntries = parseJsonl<Record<string, unknown>>(metaText);
+
+			if (body.index >= 0 && body.index < metaEntries.length) {
+				// Update dataset_meta.jsonl
+				metaEntries[body.index] = {
+					...metaEntries[body.index],
+					speech: transcription,
+				};
+				await fs.writeFile(metaPath, serializeJsonl(metaEntries), 'utf-8');
+
+				// Update dataset.jsonl if entry exists
+				const baseDir = path.dirname(metaPath);
+				const datasetPath = path.join(baseDir, 'dataset.jsonl');
+				try {
+					const datasetText = await fs.readFile(datasetPath, 'utf-8');
+					const datasetEntries = parseJsonl<Record<string, unknown>>(datasetText);
+					const existingIndex = datasetEntries.findIndex(
+						(e) => e.meta_index === body.index
+					);
+					if (existingIndex >= 0) {
+						datasetEntries[existingIndex] = {
+							...datasetEntries[existingIndex],
+							speech: transcription,
+						};
+						await fs.writeFile(datasetPath, serializeJsonl(datasetEntries), 'utf-8');
+					}
+				} catch {
+					// dataset.jsonl doesn't exist yet, skip
+				}
+			}
+		}
 
 		return new Response(
 			JSON.stringify({ transcription }),

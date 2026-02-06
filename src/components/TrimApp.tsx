@@ -59,6 +59,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 	const [videoDuration, setVideoDuration] = useState(0);
 	const [previewInterval, setPreviewInterval] = useState<NodeJS.Timeout | null>(null);
 	const [captionInput, setCaptionInput] = useState('');
+	const [speechInput, setSpeechInput] = useState('');
 	const [showCaptionEditor, setShowCaptionEditor] = useState(false);
 	const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
 	const [isTranscribing, setIsTranscribing] = useState(false);
@@ -102,6 +103,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 
 		const item = items[index];
 		setCaptionInput(item.caption || '');
+		setSpeechInput((item as any).speech || '');
 		setCropRect(null); // Reset crop when changing item
 		if (item.processed) {
 			setSaveStatus('已处理 - 显示处理后媒体');
@@ -259,6 +261,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 					metaPath,
 					index: currentIndex,
 					caption: captionInput,
+					speech: speechInput,
 				}),
 			});
 			const data = await response.json();
@@ -267,6 +270,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 			}
 			const newItems = [...items];
 			newItems[currentIndex] = { ...newItems[currentIndex], caption: captionInput };
+			(newItems[currentIndex] as any).speech = speechInput;
 			setItems(newItems);
 			setSaveStatus('Caption 已保存');
 		} catch (error: any) {
@@ -347,16 +351,21 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					videoPath: currentItem.processed_video_path.split('?')[0],
+					metaPath,
+					index: currentIndex,
 				}),
 			});
 			const data = await response.json();
 			if (!response.ok) {
 				throw new Error(data.error || '转录失败');
 			}
-			// Append transcription to caption
-			const newCaption = captionInput ? `${captionInput}\n\n[Transcription]\n${data.transcription}` : `[Transcription]\n${data.transcription}`;
-			setCaptionInput(newCaption);
-			setSaveStatus('Whisper 转录完成，已添加到 caption');
+			// Set transcription to speech input
+			setSpeechInput(data.transcription);
+			// Update local state
+			const newItems = [...items];
+			(newItems[currentIndex] as any).speech = data.transcription;
+			setItems(newItems);
+			setSaveStatus('Whisper 转录完成');
 		} catch (error: any) {
 			setSaveStatus(error.message || '转录失败');
 		} finally {
@@ -668,7 +677,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 									className="absolute bottom-full left-0 right-0 mb-2 bg-[#1b2232] border border-[#2a3244] rounded-xl p-3 shadow-xl z-50"
 								>
 									<div className="text-xs text-[#a9b2c3] mb-2">Caption 编辑器 (Ctrl+Enter 保存)</div>
-									<div className="relative">
+									<div className="relative" style={{ height: '180px' }}>
 										<textarea
 											value={captionInput}
 											onChange={(e) => setCaptionInput(e.target.value)}
@@ -678,12 +687,18 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 													setShowCaptionEditor(false);
 												}
 											}}
-											className="w-full h-120 px-3 py-2 rounded-lg border border-[#2a3244] bg-[#0b0f17] text-[#e7ecf3] text-sm font-mono resize-none"
+											className="w-full h-full px-3 py-2 rounded-lg border border-[#2a3244] bg-[#0b0f17] text-[#e7ecf3] text-sm font-mono resize-none"
 											placeholder="输入 caption..."
 										/>
-										{/* <div className="absolute top-0 left-0 right-0 h-120 px-3 py-2 pointer-events-none overflow-hidden text-sm font-mono whitespace-pre-wrap break-all text-transparent">
-											<HighlightedText text={captionInput} />
-										</div> */}
+									</div>
+									<div className="text-xs text-[#a9b2c3] mt-3 mb-2">Speech (Whisper 转录)</div>
+									<div className="relative" style={{ height: '60px' }}>
+										<textarea
+											value={speechInput}
+											onChange={(e) => setSpeechInput(e.target.value)}
+											className="w-full h-full px-3 py-2 rounded-lg border border-[#2a3244] bg-[#0b0f17] text-[#e7ecf3] text-sm font-mono resize-none"
+											placeholder="Whisper 转录结果..."
+										/>
 									</div>
 									<div className="flex justify-between mt-2">
 										<div className="text-xs text-[#a9b2c3]">
