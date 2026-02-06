@@ -449,16 +449,16 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 	return (
 		<div className="flex gap-4 h-[calc(100vh-80px)] p-4">
 			{/* Left Panel - Controls */}
-			<div className="w-[360px] bg-[#141a26] border border-[#2a3244] rounded-xl p-4 flex flex-col gap-3 overflow-hidden">
+			<div className="w-[340px] bg-[#141a26] border border-[#2a3244] rounded-xl p-3 flex flex-col gap-2 overflow-hidden">
 				<div className="text-xs text-[#a9b2c3]">参考音频区间 (秒)</div>
-				<div className="grid grid-cols-2 gap-2">
+				<div className="grid grid-cols-2 gap-1.5">
 					<input
 						type="number"
 						step="0.01"
 						placeholder="Start"
 						value={refStart}
 						onChange={(e) => setRefStart(e.target.value)}
-						className="w-full px-2.5 py-2 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3]"
+						className="w-full px-2 py-1.5 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3] text-sm"
 					/>
 					<input
 						type="number"
@@ -466,16 +466,16 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 						placeholder="End"
 						value={refEnd}
 						onChange={(e) => handleRefEndChange(e.target.value)}
-						className="w-full px-2.5 py-2 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3]"
+						className="w-full px-2 py-1.5 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3] text-sm"
 					/>
 				</div>
-				<div className="flex gap-2">
+				<div className="flex gap-1.5">
 					<button
 						onClick={() => {
 							const video = document.getElementById('main-video') as HTMLVideoElement;
 							if (video) setRefStart(video.currentTime.toFixed(2));
 						}}
-						className="flex-1 px-3 py-2 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3] text-sm"
+						className="flex-1 px-2 py-1.5 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3] text-xs"
 					>
 						设为当前起点
 					</button>
@@ -486,14 +486,14 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 								handleRefEndChange(video.currentTime.toFixed(2));
 							}
 						}}
-						className="flex-1 px-3 py-2 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3] text-sm"
+						className="flex-1 px-2 py-1.5 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3] text-xs"
 					>
 						设为当前终点
 					</button>
 				</div>
 
-				<div className="text-xs text-[#a9b2c3] mt-3">视频裁剪区间 (秒)</div>
-				<div className="grid grid-cols-2 gap-2">
+				<div className="text-xs text-[#a9b2c3] mt-2">视频裁剪区间 (秒)</div>
+				<div className="grid grid-cols-2 gap-1.5">
 					<input
 						type="number"
 						step="0.01"
@@ -503,7 +503,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 							setVideoStart(e.target.value);
 							if (e.target.value) setVideoStartManuallySet(true);
 						}}
-						className="w-full px-2.5 py-2 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3]"
+						className="w-full px-2 py-1.5 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3] text-sm"
 					/>
 					<input
 						type="number"
@@ -511,10 +511,10 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 						placeholder="End"
 						value={videoEnd}
 						onChange={(e) => setVideoEnd(e.target.value)}
-						className="w-full px-2.5 py-2 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3]"
+						className="w-full px-2 py-1.5 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3] text-sm"
 					/>
 				</div>
-				<div className="flex gap-2">
+				<div className="flex gap-1.5">
 					<button
 						onClick={() => {
 							const video = document.getElementById('main-video') as HTMLVideoElement;
@@ -523,7 +523,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 								setVideoStartManuallySet(true);
 							}
 						}}
-						className="flex-1 px-3 py-2 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3] text-sm"
+						className="flex-1 px-2 py-1.5 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3] text-xs"
 					>
 						设为当前起点
 					</button>
@@ -532,69 +532,69 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 							const video = document.getElementById('main-video') as HTMLVideoElement;
 							if (video) setVideoEnd(video.currentTime.toFixed(2));
 						}}
-						className="flex-1 px-3 py-2 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3] text-sm"
+						className="flex-1 px-2 py-1.5 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3] text-xs"
 					>
 						设为当前终点
 					</button>
 				</div>
 
-				<div className="flex gap-2 mt-2">
-					<button onClick={handleSave} className="flex-1 px-3 py-2 rounded-lg bg-[#4f8cff] text-white text-sm">
+				<div className="flex gap-1.5 mt-2">
+					<button onClick={handleSave} className="flex-1 px-2 py-1.5 rounded-lg bg-[#4f8cff] text-white text-xs">
 						裁剪并保存
 					</button>
-					<button onClick={handleClear} className="flex-1 px-3 py-2 rounded-lg bg-transparent border border-[#2a3244] text-[#e7ecf3] text-sm">
+					<button onClick={handleClear} className="flex-1 px-2 py-1.5 rounded-lg bg-transparent border border-[#2a3244] text-[#e7ecf3] text-xs">
 						清空区间
 					</button>
 				</div>
 				<div className="text-xs text-[#a9b2c3]">{saveStatus}</div>
 
-				<div className="flex gap-2 mt-4">
+				<div className="flex gap-1.5 mt-2">
 					<input
 						type="text"
 						placeholder="dataset_meta.jsonl 路径"
 						value={metaPath}
 						onChange={(e) => setMetaPath(e.target.value)}
-						className="flex-1 px-2.5 py-2 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3]"
+						className="flex-1 px-2 py-1.5 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3] text-sm"
 					/>
-					<button onClick={loadMeta} className="px-3 py-2 rounded-lg bg-[#4f8cff] text-white">
+					<button onClick={loadMeta} className="px-2 py-1.5 rounded-lg bg-[#4f8cff] text-white text-xs">
 						加载
 					</button>
 				</div>
 				<div className="text-xs text-[#a9b2c3]">{loadStatus}</div>
 
-				<div className="flex-1 overflow-y-auto pr-1.5">
+				<div className="flex-1 overflow-y-auto pr-1">
 					{items.map((item, index) => (
 						<div
 							key={index}
 							onClick={() => selectIndex(index)}
-							className={`p-2.5 rounded-lg border mb-2 cursor-pointer ${
+							className={`p-2 rounded-lg border mb-1.5 cursor-pointer ${
 								index === currentIndex
 									? 'border-[#4f8cff] bg-[#4f8cff]/10'
 									: 'border-transparent bg-[#1b2232]'
 							}`}
 						>
 							<div className="flex justify-between items-start">
-								<div className="text-sm truncate flex-1">{item.caption || item.media_path || '未命名条目'}</div>
-								<div className="flex gap-2 ml-2">
+								<div className="text-xs truncate flex-1">{item.caption || item.media_path || '未命名条目'}</div>
+								<div className="flex gap-1.5 ml-1.5">
 									<button
 										onClick={(e) => handleCopy(index, e)}
-										className="text-[#4f8cff] text-xs hover:text-[#3d7ae8]"
+										className="text-[#4f8cff] text-[10px] hover:text-[#3d7ae8]"
 									>
 										复制
 									</button>
 									<button
 										onClick={(e) => handleDelete(index, e)}
-										className="text-[#ff6b6b] text-xs hover:text-[#ff4757]"
+										className="text-[#ff6b6b] text-[10px] hover:text-[#ff4757]"
 									>
 										删除
 									</button>
 								</div>
 							</div>
-							<div className="text-xs text-[#a9b2c3]">
+							<div className="text-[10px] text-[#a9b2c3]">
 								#{index}{item.caption && item.media_path ? ` ${item.media_path}` : ''}{(item as any).copied_from !== undefined ? ` (复制自 #${(item as any).copied_from})` : ''}
 							</div>
 							<span
-								className={`inline-block px-1.5 py-0.5 rounded-full text-[11px] ml-1.5 ${
+								className={`inline-block px-1 py-0.5 rounded-full text-[10px] ${
 									item.processed ? 'bg-[#48c78e]/20 text-[#48c78e]' : 'bg-[#ffcd56]/20 text-[#ffcd56]'
 								}`}
 							>
