@@ -86,10 +86,45 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 			if (!response.ok) {
 				throw new Error(data.error || '加载失败');
 			}
-			setItems(data.items || []);
-			setCurrentIndex(data.items?.length > 0 ? 0 : -1);
-			setLoadStatus(`已加载 ${data.items?.length || 0} 条`);
+			const loadedItems = data.items || [];
+			setItems(loadedItems);
+			setLoadStatus(`已加载 ${loadedItems.length || 0} 条`);
 			localStorage.setItem('ltx-meta-path', metaPath);
+			
+			// Auto-select first item and load its data
+			if (loadedItems.length > 0) {
+				const firstItem = loadedItems[0];
+				setCurrentIndex(0);
+				setCaptionInput(firstItem.caption || '');
+				setSpeechInput(firstItem.speech || '');
+				setCropRect(null);
+				setVideoStartManuallySet(false);
+				setVideoEndManuallySet(false);
+				if (firstItem.processed) {
+					setSaveStatus('已处理 - 显示处理后媒体');
+					if (firstItem.processed_audio_pos && Array.isArray(firstItem.processed_audio_pos)) {
+						setRefStart(firstItem.processed_audio_pos[0].toFixed(2));
+						setRefEnd(firstItem.processed_audio_pos[1].toFixed(2));
+					}
+					if (firstItem.processed_video_pos && Array.isArray(firstItem.processed_video_pos)) {
+						setVideoStart(firstItem.processed_video_pos[0].toFixed(2));
+						setVideoEnd(firstItem.processed_video_pos[1].toFixed(2));
+						setVideoStartManuallySet(true);
+						setVideoEndManuallySet(true);
+					} else {
+						setVideoStart('');
+						setVideoEnd('');
+					}
+				} else {
+					setSaveStatus('就绪');
+					setRefStart('0');
+					setRefEnd('');
+					setVideoStart('');
+					setVideoEnd('');
+				}
+			} else {
+				setCurrentIndex(-1);
+			}
 		} catch (error: any) {
 			setLoadStatus(error.message || '加载失败');
 		}
