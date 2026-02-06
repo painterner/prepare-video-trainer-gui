@@ -63,6 +63,9 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 	const [showCaptionEditor, setShowCaptionEditor] = useState(false);
 	const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
 	const [isTranscribing, setIsTranscribing] = useState(false);
+	const [batchRange, setBatchRange] = useState('');
+	const [isBatchProcessing, setIsBatchProcessing] = useState(false);
+	const [batchProgress, setBatchProgress] = useState('');
 	const editorRef = useRef<HTMLDivElement>(null);
 	const videoContainerRef = useRef<HTMLDivElement>(null);
 	
@@ -428,6 +431,113 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 		}
 	};
 
+	// Parse batch range string like "1,3,5-10,12"
+	const parseBatchRange = (rangeStr: string): number[] => {
+		const indices: Set<number> = new Set();
+		const parts = rangeStr.split(',').map(s => s.trim()).filter(Boolean);
+		for (const part of parts) {
+			if (part.includes(':')) {
+				const [start, end] = part.split(':').map(s => parseInt(s.trim(), 10));
+				if (!isNaN(start) && !isNaN(end)) {
+					for (let i = start; i <= end; i++) {
+						if (i >= 0 && i < items.length) indices.add(i);
+					}
+				}
+			} else if (part.includes('-')) {
+				const [start, end] = part.split('-').map(s => parseInt(s.trim(), 10));
+				if (!isNaN(start) && !isNaN(end)) {
+					for (let i = start; i <= end; i++) {
+						if (i >= 0 && i < items.length) indices.add(i);
+					}
+				}
+			} else {
+				const idx = parseInt(part, 10);
+				if (!isNaN(idx) && idx >= 0 && idx < items.length) {
+					indices.add(idx);
+				}
+			}
+		}
+		return Array.from(indices).sort((a, b) => a - b);
+	};
+
+	const handleBatchProcess = async () => {
+		const indices = parseBatchRange(batchRange);
+		if (indices.length === 0) {
+			setBatchProgress('无效范围');
+			return;
+		}
+
+		setIsBatchProcessing(true);
+		setBatchProgress(`0/${indices.length} 开始...`);
+
+		for (let i = 0; i < indices.length; i++) {
+			const idx = indices[i];
+			const item = items[idx];
+			
+			if (!item.processed_video_path) {
+				setBatchProgress(`${i + 1}/${indices.length} #${idx}跳过(无视频)`);
+				continue;
+			}
+
+			setBatchProgress(`${i + 1}/${indices.length} #${idx} Caption...`);
+			
+			try {
+				// Generate caption
+				const captionRes = await fetch('/api/generate-caption.json', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						videoPath: item.processed_video_path.split('?')[0],
+						metaPath,
+						index: idx,
+					}),
+				});
+				const captionData = await captionRes.json();
+				if (!captionRes.ok) {
+					setBatchProgress(`${i + 1}/${indices.length} #${idx} Caption失败`);
+					continue;
+				}
+
+				setBatchProgress(`${i + 1}/${indices.length} #${idx} Whisper...`);
+
+				// Whisper transcribe
+				const whisperRes = await fetch('/api/whisper-transcribe.json', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						videoPath: item.processed_video_path.split('?')[0],
+						metaPath,
+						index: idx,
+					}),
+				});
+				const whisperData = await whisperRes.json();
+				if (!whisperRes.ok) {
+					setBatchProgress(`${i + 1}/${indices.length} #${idx} Whisper失败`);
+					continue;
+				}
+
+				// Update local state
+				const newItems = [...items];
+				newItems[idx] = { 
+					...newItems[idx], 
+					caption: captionData.caption,
+				};
+				(newItems[idx] as any).speech = whisperData.transcription;
+				setItems(newItems);
+				
+				setBatchProgress(`${i + 1}/${indices.length} #${idx} ✓`);
+
+			} catch (error: any) {
+				setBatchProgress(`${i + 1}/${indices.length} #${idx} 错误`);
+			}
+		}
+
+		setBatchProgress(`完成 ${indices.length}条`);
+		setIsBatchProcessing(false);
+		// Reload to get updated data
+		await loadMeta();
+	};
+
 	// Close popover when clicking outside
 	useEffect(() => {
 		const handleClickOutside = (e: MouseEvent) => {
@@ -561,6 +671,43 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 					</button>
 				</div>
 				<div className="text-xs text-[#a9b2c3]">{loadStatus}</div>
+
+				<div className="flex gap-1 mt-1">
+					<input
+						type="text"
+						placeholder="范围 (0:5, 7, 10-15)"
+						value={batchRange}
+						onChange={(e) => setBatchRange(e.target.value)}
+						className="flex-1 px-1.5 py-1 rounded border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3] text-xs"
+					/>
+					<button 
+						onClick={() => {
+							const indices = parseBatchRange(batchRange);
+							if (indices.length === 0) {
+								setBatchProgress('无效');
+							} else {
+								setBatchProgress(`[${indices.join(',')}] (${indices.length}条)`);
+							}
+						}}
+						disabled={items.length === 0}
+						className="px-1.5 py-1 rounded border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3] text-[10px]"
+						title="预览"
+					>
+						👁
+					</button>
+					<button 
+						onClick={handleBatchProcess}
+						disabled={isBatchProcessing || items.length === 0}
+						className={`px-1.5 py-1 rounded text-[10px] ${
+							isBatchProcessing || items.length === 0
+								? 'bg-[#2a3244] text-[#666] cursor-not-allowed'
+								: 'bg-[#9b59b6] text-white'
+						}`}
+					>
+						{isBatchProcessing ? '...' : '批处理'}
+					</button>
+				</div>
+				{batchProgress && <div className="text-[10px] text-[#a9b2c3] truncate">{batchProgress}</div>}
 
 				<div className="flex-1 overflow-y-auto pr-1">
 					{items.map((item, index) => (
