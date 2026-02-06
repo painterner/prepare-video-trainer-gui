@@ -61,6 +61,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 	const [captionInput, setCaptionInput] = useState('');
 	const [showCaptionEditor, setShowCaptionEditor] = useState(false);
 	const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
+	const [isTranscribing, setIsTranscribing] = useState(false);
 	const editorRef = useRef<HTMLDivElement>(null);
 	const videoContainerRef = useRef<HTMLDivElement>(null);
 	
@@ -312,6 +313,8 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					videoPath: currentItem.processed_video_path.split('?')[0], // Remove timestamp
+					metaPath,
+					index: currentIndex,
 				}),
 			});
 			const data = await response.json();
@@ -319,11 +322,45 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 				throw new Error(data.error || '生成失败');
 			}
 			setCaptionInput(data.caption);
-			setSaveStatus('AI caption 已生成，请检查后保存');
+			// Update local state
+			const newItems = [...items];
+			newItems[currentIndex] = { ...newItems[currentIndex], caption: data.caption };
+			setItems(newItems);
+			setSaveStatus('AI caption 已生成并保存');
 		} catch (error: any) {
 			setSaveStatus(error.message || '生成 caption 失败');
 		} finally {
 			setIsGeneratingCaption(false);
+		}
+	};
+
+	const handleWhisperTranscribe = async () => {
+		if (!currentItem?.processed_video_path) {
+			setSaveStatus('请先处理视频');
+			return;
+		}
+		setIsTranscribing(true);
+		setSaveStatus('Whisper 正在转录...');
+		try {
+			const response = await fetch('/api/whisper-transcribe.json', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					videoPath: currentItem.processed_video_path.split('?')[0],
+				}),
+			});
+			const data = await response.json();
+			if (!response.ok) {
+				throw new Error(data.error || '转录失败');
+			}
+			// Append transcription to caption
+			const newCaption = captionInput ? `${captionInput}\n\n[Transcription]\n${data.transcription}` : `[Transcription]\n${data.transcription}`;
+			setCaptionInput(newCaption);
+			setSaveStatus('Whisper 转录完成，已添加到 caption');
+		} catch (error: any) {
+			setSaveStatus(error.message || '转录失败');
+		} finally {
+			setIsTranscribing(false);
 		}
 	};
 
@@ -644,9 +681,9 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 											className="w-full h-120 px-3 py-2 rounded-lg border border-[#2a3244] bg-[#0b0f17] text-[#e7ecf3] text-sm font-mono resize-none"
 											placeholder="输入 caption..."
 										/>
-										<div className="absolute top-0 left-0 right-0 h-120 px-3 py-2 pointer-events-none overflow-hidden text-sm font-mono whitespace-pre-wrap break-all text-transparent">
+										{/* <div className="absolute top-0 left-0 right-0 h-120 px-3 py-2 pointer-events-none overflow-hidden text-sm font-mono whitespace-pre-wrap break-all text-transparent">
 											<HighlightedText text={captionInput} />
-										</div>
+										</div> */}
 									</div>
 									<div className="flex justify-between mt-2">
 										<div className="text-xs text-[#a9b2c3]">
@@ -656,15 +693,28 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 											<span className="text-[#2ecc71]">"引号"</span>{' '}
 											<span className="text-[#3498db]">数字</span>
 										</div>
-										<button
-											onClick={() => {
-												handleCaptionSave();
-												setShowCaptionEditor(false);
-											}}
-											className="px-3 py-1 rounded-lg bg-[#4f8cff] text-white text-sm"
-										>
-											保存
-										</button>
+										<div className="flex gap-2">
+											<button
+												onClick={handleWhisperTranscribe}
+												disabled={isTranscribing || !currentItem?.processed_video_path}
+												className={`px-3 py-1 rounded-lg text-sm ${
+													isTranscribing || !currentItem?.processed_video_path
+														? 'bg-[#2a3244] text-[#666] cursor-not-allowed'
+														: 'bg-[#27ae60] text-white hover:bg-[#219a52]'
+												}`}
+											>
+												{isTranscribing ? '转录中...' : 'Whisper'}
+											</button>
+											<button
+												onClick={() => {
+													handleCaptionSave();
+													setShowCaptionEditor(false);
+												}}
+												className="px-3 py-1 rounded-lg bg-[#4f8cff] text-white text-sm"
+											>
+												保存
+											</button>
+										</div>
 									</div>
 								</div>
 							)}
