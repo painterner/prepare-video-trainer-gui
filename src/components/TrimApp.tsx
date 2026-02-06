@@ -859,18 +859,33 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 									className="absolute bottom-full left-0 right-0 mb-2 bg-[#1b2232] border border-[#2a3244] rounded-xl p-3 shadow-xl z-50"
 								>
 									<div className="text-xs text-[#a9b2c3] mb-2">Caption 编辑器 (Ctrl+Enter 保存)</div>
-									<div className="relative" style={{ height: '180px' }}>
+									<div className="relative bg-[#0b0f17] rounded-lg border border-[#2a3244] overflow-hidden" style={{ height: '180px' }}>
+										<div 
+											id="caption-highlight-layer"
+											className="absolute top-0 left-0 right-0 bottom-0 px-3 py-2 pointer-events-none overflow-hidden text-sm font-mono whitespace-pre-wrap break-all"
+										>
+											<HighlightedText text={captionInput || ' '} />
+										</div>
 										<textarea
 											value={captionInput}
 											onChange={(e) => setCaptionInput(e.target.value)}
+											onScroll={(e) => {
+												const target = e.target as HTMLTextAreaElement;
+												const highlightLayer = document.getElementById('caption-highlight-layer');
+												if (highlightLayer) {
+													highlightLayer.scrollTop = target.scrollTop;
+													highlightLayer.scrollLeft = target.scrollLeft;
+												}
+											}}
 											onKeyDown={(e) => {
 												if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
 													handleCaptionSave();
 													setShowCaptionEditor(false);
 												}
 											}}
-											className="w-full h-full px-3 py-2 rounded-lg border border-[#2a3244] bg-[#0b0f17] text-[#e7ecf3] text-sm font-mono resize-none"
+											className="w-full h-full px-3 py-2 rounded-lg bg-transparent text-transparent text-sm font-mono resize-none relative z-10 overflow-auto"
 											placeholder="输入 caption..."
+											style={{ caretColor: '#e7ecf3' }}
 										/>
 									</div>
 									<div className="text-xs text-[#a9b2c3] mt-3 mb-2">Speech (Whisper 转录)</div>
