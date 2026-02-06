@@ -44,6 +44,142 @@ function HighlightedText({ text }: { text: string }) {
 	);
 }
 
+// Highlighted contenteditable editor
+function HighlightedEditor({ 
+	value, 
+	onChange, 
+	placeholder,
+	className,
+	onKeyDown,
+}: { 
+	value: string; 
+	onChange: (value: string) => void;
+	placeholder?: string;
+	className?: string;
+	onKeyDown?: (e: React.KeyboardEvent) => void;
+}) {
+	const editorRef = useRef<HTMLDivElement>(null);
+	const lastValueRef = useRef(value);
+
+	// Apply highlighting to text
+	const getHighlightedHtml = (text: string): string => {
+		if (!text) return '';
+		return text
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/\n/g, '<br>')
+			.replace(/(\[[^\]]*\])/g, '<span style="color:#f1c40f">$1</span>')
+			.replace(/(\{[^}]*\})/g, '<span style="color:#e74c3c">$1</span>')
+			.replace(/(&lt;[^&]*&gt;)/g, '<span style="color:#9b59b6">$1</span>')
+			.replace(/("[^"]*")/g, '<span style="color:#2ecc71">$1</span>')
+			.replace(/\b(\d+\.?\d*)\b/g, '<span style="color:#3498db">$1</span>');
+	};
+
+	// Get plain text from contenteditable
+	const getPlainText = (element: HTMLElement): string => {
+		let text = '';
+		element.childNodes.forEach((node) => {
+			if (node.nodeType === Node.TEXT_NODE) {
+				text += node.textContent;
+			} else if (node.nodeName === 'BR') {
+				text += '\n';
+			} else if (node.nodeType === Node.ELEMENT_NODE) {
+				text += getPlainText(node as HTMLElement);
+			}
+		});
+		return text;
+	};
+
+	// Save and restore cursor position
+	const saveCursor = () => {
+		const sel = window.getSelection();
+		if (!sel || sel.rangeCount === 0 || !editorRef.current) return null;
+		const range = sel.getRangeAt(0);
+		const preRange = range.cloneRange();
+		preRange.selectNodeContents(editorRef.current);
+		preRange.setEnd(range.startContainer, range.startOffset);
+		return preRange.toString().length;
+	};
+
+	const restoreCursor = (pos: number | null) => {
+		if (pos === null || !editorRef.current) return;
+		const sel = window.getSelection();
+		if (!sel) return;
+
+		let charCount = 0;
+		const walker = document.createTreeWalker(editorRef.current, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+		let node: Node | null = walker.nextNode();
+		
+		while (node) {
+			if (node.nodeType === Node.TEXT_NODE) {
+				const len = node.textContent?.length || 0;
+				if (charCount + len >= pos) {
+					const range = document.createRange();
+					range.setStart(node, pos - charCount);
+					range.collapse(true);
+					sel.removeAllRanges();
+					sel.addRange(range);
+					return;
+				}
+				charCount += len;
+			} else if (node.nodeName === 'BR') {
+				charCount += 1;
+				if (charCount >= pos) {
+					const range = document.createRange();
+					range.setStartAfter(node);
+					range.collapse(true);
+					sel.removeAllRanges();
+					sel.addRange(range);
+					return;
+				}
+			}
+			node = walker.nextNode();
+		}
+	};
+
+	const handleInput = () => {
+		if (!editorRef.current) return;
+		const newValue = getPlainText(editorRef.current);
+		if (newValue !== lastValueRef.current) {
+			lastValueRef.current = newValue;
+			onChange(newValue);
+		}
+	};
+
+	// Update HTML when value changes externally
+	useEffect(() => {
+		if (!editorRef.current) return;
+		const currentText = getPlainText(editorRef.current);
+		if (currentText !== value) {
+			const cursorPos = saveCursor();
+			editorRef.current.innerHTML = getHighlightedHtml(value);
+			lastValueRef.current = value;
+			restoreCursor(cursorPos);
+		}
+	}, [value]);
+
+	// Re-highlight on blur for clean display
+	const handleBlur = () => {
+		if (!editorRef.current) return;
+		editorRef.current.innerHTML = getHighlightedHtml(value);
+	};
+
+	return (
+		<div
+			ref={editorRef}
+			contentEditable
+			onInput={handleInput}
+			onBlur={handleBlur}
+			onKeyDown={onKeyDown}
+			className={className}
+			style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}
+			data-placeholder={placeholder}
+			suppressContentEditableWarning
+		/>
+	);
+}
+
 export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 	const [metaPath, setMetaPath] = useState(defaultMetaPath);
 	const [items, setItems] = useState<MetaItem[]>([]);
@@ -859,33 +995,19 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 									className="absolute bottom-full left-0 right-0 mb-2 bg-[#1b2232] border border-[#2a3244] rounded-xl p-3 shadow-xl z-50"
 								>
 									<div className="text-xs text-[#a9b2c3] mb-2">Caption 编辑器 (Ctrl+Enter 保存)</div>
-									<div className="relative bg-[#0b0f17] rounded-lg border border-[#2a3244] overflow-hidden" style={{ height: '180px' }}>
-										<div 
-											id="caption-highlight-layer"
-											className="absolute top-0 left-0 right-0 bottom-0 px-3 py-2 pointer-events-none overflow-hidden text-sm font-mono whitespace-pre-wrap break-all"
-										>
-											<HighlightedText text={captionInput || ' '} />
-										</div>
-										<textarea
+									<div className="relative bg-[#0b0f17] rounded-lg border border-[#2a3244] overflow-auto" style={{ height: '180px' }}>
+										<HighlightedEditor
 											value={captionInput}
-											onChange={(e) => setCaptionInput(e.target.value)}
-											onScroll={(e) => {
-												const target = e.target as HTMLTextAreaElement;
-												const highlightLayer = document.getElementById('caption-highlight-layer');
-												if (highlightLayer) {
-													highlightLayer.scrollTop = target.scrollTop;
-													highlightLayer.scrollLeft = target.scrollLeft;
-												}
-											}}
+											onChange={setCaptionInput}
 											onKeyDown={(e) => {
 												if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+													e.preventDefault();
 													handleCaptionSave();
 													setShowCaptionEditor(false);
 												}
 											}}
-											className="w-full h-full px-3 py-2 rounded-lg bg-transparent text-transparent text-sm font-mono resize-none relative z-10 overflow-auto"
+											className="w-full h-full px-3 py-2 text-[#e7ecf3] text-sm font-mono outline-none"
 											placeholder="输入 caption..."
-											style={{ caretColor: '#e7ecf3' }}
 										/>
 									</div>
 									<div className="text-xs text-[#a9b2c3] mt-3 mb-2">Speech (Whisper 转录)</div>
