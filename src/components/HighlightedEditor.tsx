@@ -12,10 +12,66 @@ interface HighlightedEditorProps {
 const defaultHighlightRules = [
 	{ pattern: /(\[[^\]]*\])/g, color: '#f1c40f' },      // [brackets] - yellow
 	{ pattern: /(\{[^}]*\})/g, color: '#e74c3c' },       // {braces} - red
-	{ pattern: /(&lt;[^&]*&gt;)/g, color: '#9b59b6' },   // <angles> - purple
+	{ pattern: /(<[^>]*>)/g, color: '#9b59b6' },         // <angles> - purple (match original text, not escaped)
 	{ pattern: /("[^"]*")/g, color: '#2ecc71' },         // "quotes" - green
 	{ pattern: /\b(\d+\.?\d*)\b/g, color: '#3498db' },   // numbers - blue
 ];
+
+// Escape HTML special characters
+const escapeHtml = (text: string): string => {
+	return text
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;');
+};
+
+// Apply highlighting to text (for display only)
+const getHighlightedHtml = (text: string): string => {
+	if (!text) return '';
+	
+	// First, find all matches and their positions
+	const matches: { start: number; end: number; color: string; text: string }[] = [];
+	
+	for (const rule of defaultHighlightRules) {
+		let match;
+		const regex = new RegExp(rule.pattern.source, 'g');
+		while ((match = regex.exec(text)) !== null) {
+			matches.push({
+				start: match.index,
+				end: match.index + match[0].length,
+				color: rule.color,
+				text: match[0],
+			});
+		}
+	}
+	
+	// Sort by start position
+	matches.sort((a, b) => a.start - b.start);
+	
+	// Remove overlapping matches (keep first)
+	const filtered: typeof matches = [];
+	for (const m of matches) {
+		if (filtered.length === 0 || m.start >= filtered[filtered.length - 1].end) {
+			filtered.push(m);
+		}
+	}
+	
+	// Build HTML
+	let html = '';
+	let lastEnd = 0;
+	for (const m of filtered) {
+		if (m.start > lastEnd) {
+			html += escapeHtml(text.slice(lastEnd, m.start));
+		}
+		html += `<span style="color:${m.color}">${escapeHtml(m.text)}</span>`;
+		lastEnd = m.end;
+	}
+	if (lastEnd < text.length) {
+		html += escapeHtml(text.slice(lastEnd));
+	}
+	
+	return html.replace(/\n/g, '<br>');
+};
 
 export default function HighlightedEditor({
 	value,
@@ -26,21 +82,7 @@ export default function HighlightedEditor({
 }: HighlightedEditorProps) {
 	const editorRef = useRef<HTMLDivElement>(null);
 	const lastValueRef = useRef(value);
-
-	// Apply highlighting to text
-	const getHighlightedHtml = (text: string): string => {
-		if (!text) return '';
-		let html = text
-			.replace(/&/g, '&amp;')
-			.replace(/</g, '&lt;')
-			.replace(/>/g, '&gt;')
-			.replace(/\n/g, '<br>');
-
-		for (const rule of defaultHighlightRules) {
-			html = html.replace(rule.pattern, `<span style="color:${rule.color}">$1</span>`);
-		}
-		return html;
-	};
+	const isComposingRef = useRef(false);
 
 	// Get plain text from contenteditable
 	const getPlainText = (element: HTMLElement): string => {
@@ -58,7 +100,7 @@ export default function HighlightedEditor({
 	};
 
 	// Save cursor position
-	const saveCursor = () => {
+	const saveCursor = (): number | null => {
 		const sel = window.getSelection();
 		if (!sel || sel.rangeCount === 0 || !editorRef.current) return null;
 		const range = sel.getRangeAt(0);
@@ -109,7 +151,7 @@ export default function HighlightedEditor({
 	};
 
 	const handleInput = () => {
-		if (!editorRef.current) return;
+		if (!editorRef.current || isComposingRef.current) return;
 		const newValue = getPlainText(editorRef.current);
 		if (newValue !== lastValueRef.current) {
 			lastValueRef.current = newValue;
@@ -142,6 +184,8 @@ export default function HighlightedEditor({
 			onInput={handleInput}
 			onBlur={handleBlur}
 			onKeyDown={onKeyDown}
+			onCompositionStart={() => { isComposingRef.current = true; }}
+			onCompositionEnd={() => { isComposingRef.current = false; handleInput(); }}
 			className={className}
 			style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}
 			data-placeholder={placeholder}
