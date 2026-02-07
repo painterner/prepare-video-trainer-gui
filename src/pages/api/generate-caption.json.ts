@@ -45,8 +45,13 @@ export const POST: APIRoute = async ({ request }) => {
 				input: {
 					// prompt: `Describe this video (include audio) overview. For example: An old man is feeding pigeons in a park. He's wearing a blue coat and a hat and looks very happy. A little girl in a red dress is playing nearby. The background is a sunny day with lush trees and birds singing. The old man says in a trembling voice, "Come on, have something to eat." Suddenly, a pigeon speaks, saying in a sharp voice, "You liar!" The old man is startled, takes a step back, raises his eyebrows in horror, and says, "Huh? You can talk?" \n
 					//         需要注意的是，你的输出文字语言应该和视频中的语言一致。如果视频中没有语言，那么请用英文输出。`,
-					prompt: `Describe this video (include audio) overview. For example: An old man is feeding pigeons in a park. He's wearing a blue coat and a hat and looks very happy. A little girl in a red dress is playing nearby. The background is a sunny day with lush trees and birds singing. The old man says in a trembling voice, "Come on, have something to eat." Suddenly, a pigeon speaks, saying in a sharp voice, "You liar!" The old man is startled, takes a step back, raises his eyebrows in horror, and says, "Huh? You can talk?" \n
-					        需要注意的是，你的输出文字语言应该和视频中的语言一致。如果视频中没有语言，那么请用英文输出。 在最后加入[SPEECH]: Word-for-word transcription of explicit spoken content (注意描述video的时候也要说明人物之间的spoken content, 不省略) [BACKGROUND SPEECH] 背景的spoken content, 比如叫卖声，背景人物的窃窃私语等. [SOUNDS]: Description of music, ambient sounds, sound effects。[TEXT] Any on-screen text visible`,
+					prompt: `Describe this video. Format As below:
+							[Overview] Describe this video overview, include the visual part and the audio part(what the role say...).
+							[SPEECH]: Word-for-word transcription of explicit spoken content (注意描述Overview的时候也要展现出来人物之间的spoken content, 不省略, 这里重复写出speech内容是为了更好的独立观察speech)
+							[BACKGROUND SPEECH] 背景的spoken content, 比如叫卖声，背景人物的窃窃私语等.
+							[SOUNDS]: Description of music, ambient sounds, sound effects。
+							[TEXT] Any on-screen text visible
+					        需要注意的是，你的输出文字语言应该和视频中的语言一致。如果视频中没有语言，那么请用英文输出。`,
 					videos: [`data:${mimeType};base64,${videoBase64}`],
 				},
 			}),
