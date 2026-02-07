@@ -58,8 +58,14 @@ export const POST: APIRoute = async ({ request }) => {
 		});
 
 		if (!createResponse.ok) {
-			const errorData = await createResponse.json();
-			throw new Error(`Replicate API error: ${JSON.stringify(errorData)}`);
+			const contentType = createResponse.headers.get('content-type') || '';
+			if (contentType.includes('application/json')) {
+				const errorData = await createResponse.json();
+				throw new Error(`Replicate API error: ${JSON.stringify(errorData)}`);
+			} else {
+				const errorText = await createResponse.text();
+				throw new Error(`Replicate API error (${createResponse.status}): ${errorText.slice(0, 200)}`);
+			}
 		}
 
 		// console.log("Created prediction, polling for result...", createResponse);
@@ -75,6 +81,11 @@ export const POST: APIRoute = async ({ request }) => {
 					'Authorization': `Bearer ${replicateApiToken}`,
 				},
 			});
+			const pollContentType = pollResponse.headers.get('content-type') || '';
+			if (!pollResponse.ok || !pollContentType.includes('application/json')) {
+				const errorText = await pollResponse.text();
+				throw new Error(`Replicate poll error (${pollResponse.status}): ${errorText.slice(0, 200)}`);
+			}
 			result = await pollResponse.json();
 		}
 
