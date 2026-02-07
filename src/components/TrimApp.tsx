@@ -78,6 +78,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 	const [batchProgress, setBatchProgress] = useState('');
 	const editorRef = useRef<HTMLDivElement>(null);
 	const videoContainerRef = useRef<HTMLDivElement>(null);
+	const listContainerRef = useRef<HTMLDivElement>(null);
 	
 	// Crop selection state
 	const [cropRect, setCropRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
@@ -87,7 +88,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 
 	const currentItem = currentIndex >= 0 && currentIndex < items.length ? items[currentIndex] : null;
 
-	const loadMeta = async () => {
+	const loadMeta = async (restoreIndex?: number) => {
 		if (!metaPath.trim()) {
 			setLoadStatus('请输入 dataset_meta.jsonl 路径');
 			return;
@@ -104,24 +105,33 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 			setLoadStatus(`已加载 ${loadedItems.length || 0} 条`);
 			localStorage.setItem('ltx-meta-path', metaPath);
 			
-			// Auto-select first item and load its data
+			// Determine which index to select
+			let targetIndex = 0;
+			if (typeof restoreIndex === 'number' && restoreIndex >= 0 && restoreIndex < loadedItems.length) {
+				targetIndex = restoreIndex;
+			}
+			
+			// Auto-select item and load its data
 			if (loadedItems.length > 0) {
-				const firstItem = loadedItems[0];
-				setCurrentIndex(0);
-				setCaptionInput(firstItem.caption || '');
-				setSpeechInput(firstItem.speech || '');
+				const item = loadedItems[targetIndex];
+				setCurrentIndex(targetIndex);
+				localStorage.setItem('ltx-current-index', String(targetIndex));
+				setCaptionInput(item.caption || '');
+				setSpeechInput(item.speech || '');
+				setCurrentTag(item.tag || '');
+				setCurrentSeparateSpeechTag(item.separateSpeechTag || '');
 				setCropRect(null);
 				setVideoStartManuallySet(false);
 				setVideoEndManuallySet(false);
-				if (firstItem.processed) {
+				if (item.processed) {
 					setSaveStatus('已处理 - 显示处理后媒体');
-					if (firstItem.processed_audio_pos && Array.isArray(firstItem.processed_audio_pos)) {
-						setRefStart(firstItem.processed_audio_pos[0].toFixed(2));
-						setRefEnd(firstItem.processed_audio_pos[1].toFixed(2));
+					if (item.processed_audio_pos && Array.isArray(item.processed_audio_pos)) {
+						setRefStart(item.processed_audio_pos[0].toFixed(2));
+						setRefEnd(item.processed_audio_pos[1].toFixed(2));
 					}
-					if (firstItem.processed_video_pos && Array.isArray(firstItem.processed_video_pos)) {
-						setVideoStart(firstItem.processed_video_pos[0].toFixed(2));
-						setVideoEnd(firstItem.processed_video_pos[1].toFixed(2));
+					if (item.processed_video_pos && Array.isArray(item.processed_video_pos)) {
+						setVideoStart(item.processed_video_pos[0].toFixed(2));
+						setVideoEnd(item.processed_video_pos[1].toFixed(2));
 						setVideoStartManuallySet(true);
 						setVideoEndManuallySet(true);
 					} else {
@@ -146,6 +156,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 	const selectIndex = (index: number) => {
 		if (index < 0 || index >= items.length) return;
 		setCurrentIndex(index);
+		localStorage.setItem('ltx-current-index', String(index));
 		setVideoStartManuallySet(false);
 		setVideoEndManuallySet(false);
 
@@ -176,6 +187,90 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 			setRefEnd('');
 			setVideoStart('');
 			setVideoEnd('');
+		}
+	};
+
+	// Auto-load on mount if metaPath exists
+	useEffect(() => {
+		const savedPath = localStorage.getItem('ltx-meta-path');
+		const savedIndex = localStorage.getItem('ltx-current-index');
+		if (savedPath) {
+			setMetaPath(savedPath);
+			// Need to call loadMeta after metaPath is set
+			setTimeout(() => {
+				const restoreIdx = savedIndex ? parseInt(savedIndex, 10) : 0;
+				loadMetaWithPath(savedPath, restoreIdx);
+			}, 0);
+		}
+	}, []);
+
+	// Helper to load with specific path (for initial load)
+	const loadMetaWithPath = async (path: string, restoreIndex?: number) => {
+		if (!path.trim()) return;
+		setLoadStatus('加载中...');
+		try {
+			const response = await fetch(`/api/meta.json?path=${encodeURIComponent(path)}`);
+			const data = await response.json();
+			if (!response.ok) {
+				throw new Error(data.error || '加载失败');
+			}
+			const loadedItems = data.items || [];
+			setItems(loadedItems);
+			setLoadStatus(`已加载 ${loadedItems.length || 0} 条`);
+			
+			let targetIndex = 0;
+			if (typeof restoreIndex === 'number' && restoreIndex >= 0 && restoreIndex < loadedItems.length) {
+				targetIndex = restoreIndex;
+			}
+			
+			if (loadedItems.length > 0) {
+				const item = loadedItems[targetIndex];
+				setCurrentIndex(targetIndex);
+				setCaptionInput(item.caption || '');
+				setSpeechInput(item.speech || '');
+				setCurrentTag(item.tag || '');
+				setCurrentSeparateSpeechTag(item.separateSpeechTag || '');
+				setCropRect(null);
+				setVideoStartManuallySet(false);
+				setVideoEndManuallySet(false);
+				if (item.processed) {
+					setSaveStatus('已处理 - 显示处理后媒体');
+					if (item.processed_audio_pos && Array.isArray(item.processed_audio_pos)) {
+						setRefStart(item.processed_audio_pos[0].toFixed(2));
+						setRefEnd(item.processed_audio_pos[1].toFixed(2));
+					}
+					if (item.processed_video_pos && Array.isArray(item.processed_video_pos)) {
+						setVideoStart(item.processed_video_pos[0].toFixed(2));
+						setVideoEnd(item.processed_video_pos[1].toFixed(2));
+						setVideoStartManuallySet(true);
+						setVideoEndManuallySet(true);
+					} else {
+						setVideoStart('');
+						setVideoEnd('');
+					}
+				} else {
+					setSaveStatus('就绪');
+					setRefStart('0');
+					setRefEnd('');
+					setVideoStart('');
+					setVideoEnd('');
+				}
+				// Scroll to the selected item after render
+				setTimeout(() => scrollToIndex(targetIndex), 100);
+			} else {
+				setCurrentIndex(-1);
+			}
+		} catch (error: any) {
+			setLoadStatus(error.message || '加载失败');
+		}
+	};
+
+	const scrollToIndex = (index: number) => {
+		if (listContainerRef.current) {
+			const items = listContainerRef.current.children;
+			if (items[index]) {
+				(items[index] as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' });
+			}
 		}
 	};
 
@@ -790,7 +885,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 				</div>
 				{batchProgress && <div className="text-[10px] text-[#a9b2c3] truncate">{batchProgress}</div>}
 
-				<div className="flex-1 overflow-y-auto pr-1">
+				<div ref={listContainerRef} className="flex-1 overflow-y-auto pr-1">
 					{items.map((item, index) => (
 						<div
 							key={index}
