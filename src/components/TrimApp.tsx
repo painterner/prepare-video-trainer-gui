@@ -11,6 +11,9 @@ interface MetaItem {
 	processed_audio_path?: string;
 	processed_audio_pos?: [number, number];
 	processed_video_pos?: [number, number] | null;
+	tag?: string;
+	speech?: string;
+	separateSpeechTag?: string;
 }
 
 interface TrimAppProps {
@@ -45,6 +48,10 @@ function HighlightedText({ text }: { text: string }) {
 	);
 }
 
+// Available tags for classification
+const AVAILABLE_TAGS = ['人物', '风景', '动物', '产品', '动画', '其他'];
+const SEPARATE_SPEECH_TAGS = ['分离', '不分离'];
+
 export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 	const [metaPath, setMetaPath] = useState(defaultMetaPath);
 	const [items, setItems] = useState<MetaItem[]>([]);
@@ -61,6 +68,8 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 	const [previewInterval, setPreviewInterval] = useState<NodeJS.Timeout | null>(null);
 	const [captionInput, setCaptionInput] = useState('');
 	const [speechInput, setSpeechInput] = useState('');
+	const [currentTag, setCurrentTag] = useState('');
+	const [currentSeparateSpeechTag, setCurrentSeparateSpeechTag] = useState('');
 	const [showCaptionEditor, setShowCaptionEditor] = useState(false);
 	const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
 	const [isTranscribing, setIsTranscribing] = useState(false);
@@ -143,6 +152,8 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 		const item = items[index];
 		setCaptionInput(item.caption || '');
 		setSpeechInput((item as any).speech || '');
+		setCurrentTag(item.tag || '');
+		setCurrentSeparateSpeechTag(item.separateSpeechTag || '');
 		setCropRect(null); // Reset crop when changing item
 		if (item.processed) {
 			setSaveStatus('已处理 - 显示处理后媒体');
@@ -301,6 +312,8 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 					index: currentIndex,
 					caption: captionInput,
 					speech: speechInput,
+					tag: currentTag || undefined,
+					separateSpeechTag: currentSeparateSpeechTag || undefined,
 				}),
 			});
 			const data = await response.json();
@@ -308,12 +321,79 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 				throw new Error(data.error || '保存失败');
 			}
 			const newItems = [...items];
-			newItems[currentIndex] = { ...newItems[currentIndex], caption: captionInput };
+			newItems[currentIndex] = { 
+				...newItems[currentIndex], 
+				caption: captionInput, 
+				tag: currentTag || undefined,
+				separateSpeechTag: currentSeparateSpeechTag || undefined,
+			};
 			(newItems[currentIndex] as any).speech = speechInput;
 			setItems(newItems);
 			setSaveStatus('Caption 已保存');
 		} catch (error: any) {
 			setSaveStatus(error.message || '保存 caption 失败');
+		}
+	};
+
+	const handleTagClick = async (tag: string) => {
+		const newTag = currentTag === tag ? '' : tag; // Toggle if same tag
+		setCurrentTag(newTag);
+		
+		if (currentIndex < 0) return;
+		try {
+			const response = await fetch('/api/caption.json', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					metaPath,
+					index: currentIndex,
+					caption: captionInput,
+					speech: speechInput,
+					tag: newTag || undefined,
+					separateSpeechTag: currentSeparateSpeechTag || undefined,
+				}),
+			});
+			const data = await response.json();
+			if (!response.ok) {
+				throw new Error(data.error || '保存失败');
+			}
+			const newItems = [...items];
+			newItems[currentIndex] = { ...newItems[currentIndex], tag: newTag || undefined };
+			setItems(newItems);
+			setSaveStatus(`标签 "${newTag || '无'}" 已保存`);
+		} catch (error: any) {
+			setSaveStatus(error.message || '保存标签失败');
+		}
+	};
+
+	const handleSeparateSpeechTagClick = async (tag: string) => {
+		const newTag = currentSeparateSpeechTag === tag ? '' : tag; // Toggle if same tag
+		setCurrentSeparateSpeechTag(newTag);
+		
+		if (currentIndex < 0) return;
+		try {
+			const response = await fetch('/api/caption.json', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					metaPath,
+					index: currentIndex,
+					caption: captionInput,
+					speech: speechInput,
+					tag: currentTag || undefined,
+					separateSpeechTag: newTag || undefined,
+				}),
+			});
+			const data = await response.json();
+			if (!response.ok) {
+				throw new Error(data.error || '保存失败');
+			}
+			const newItems = [...items];
+			newItems[currentIndex] = { ...newItems[currentIndex], separateSpeechTag: newTag || undefined };
+			setItems(newItems);
+			setSaveStatus(`语音分离 "${newTag || '无'}" 已保存`);
+		} catch (error: any) {
+			setSaveStatus(error.message || '保存标签失败');
 		}
 	};
 
@@ -867,7 +947,42 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 										transform: 'translate(-50%, -50%)'
 									}}
 								>
-									<div className="text-xs text-[#a9b2c3] mb-2">Caption 编辑器 (Ctrl+Enter 保存)</div>
+									<div className="flex justify-between items-center mb-2">
+										<div className="text-xs text-[#a9b2c3]">Caption 编辑器 (Ctrl+Enter 保存)</div>
+										<div className="flex gap-2">
+											<div className="flex gap-1">
+												{AVAILABLE_TAGS.map((tag) => (
+													<button
+														key={tag}
+														onClick={() => handleTagClick(tag)}
+														className={`px-2 py-0.5 rounded text-[10px] border transition-colors ${
+															currentTag === tag
+																? 'bg-[#4f8cff] border-[#4f8cff] text-white'
+																: 'bg-[#1b2232] border-[#2a3244] text-[#a9b2c3] hover:border-[#4f8cff]'
+														}`}
+													>
+														{tag}
+													</button>
+												))}
+											</div>
+											<div className="border-l border-[#2a3244] mx-1" />
+											<div className="flex gap-1">
+												{SEPARATE_SPEECH_TAGS.map((tag) => (
+													<button
+														key={tag}
+														onClick={() => handleSeparateSpeechTagClick(tag)}
+														className={`px-2 py-0.5 rounded text-[10px] border transition-colors ${
+															currentSeparateSpeechTag === tag
+																? 'bg-[#e67e22] border-[#e67e22] text-white'
+																: 'bg-[#1b2232] border-[#2a3244] text-[#a9b2c3] hover:border-[#e67e22]'
+														}`}
+													>
+														{tag}
+													</button>
+												))}
+											</div>
+										</div>
+									</div>
 									<div className="relative bg-[#0b0f17] rounded-lg border border-[#2a3244] overflow-auto" style={{ height: '270px' }}>
 										<HighlightedEditor
 											value={captionInput}

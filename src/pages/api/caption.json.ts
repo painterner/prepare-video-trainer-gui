@@ -9,12 +9,16 @@ type CaptionRequest = {
 	index: number;
 	caption: string;
 	speech?: string;
+	tag?: string;
+	separateSpeechTag?: string;
 };
 
 type MetaEntry = {
 	media_path?: string;
 	caption?: string;
 	speech?: string;
+	tag?: string;
+	separateSpeechTag?: string;
 	[key: string]: unknown;
 };
 
@@ -29,12 +33,21 @@ export const POST: APIRoute = async ({ request }) => {
 			throw new Error('Index out of range');
 		}
 
-		// Update caption and speech in dataset_meta.jsonl
+		// Build update object, only include defined values
+		const updates: Partial<MetaEntry> = { caption: body.caption };
+		if (body.speech !== undefined) updates.speech = body.speech;
+		if (body.tag !== undefined) updates.tag = body.tag || undefined;
+		if (body.separateSpeechTag !== undefined) updates.separateSpeechTag = body.separateSpeechTag || undefined;
+
+		// Update caption, speech, tag, and separateSpeechTag in dataset_meta.jsonl
 		metaEntries[body.index] = {
 			...metaEntries[body.index],
-			caption: body.caption,
-			speech: body.speech,
+			...updates,
 		};
+		// Remove empty optional fields
+		if (!metaEntries[body.index].tag) delete metaEntries[body.index].tag;
+		if (!metaEntries[body.index].separateSpeechTag) delete metaEntries[body.index].separateSpeechTag;
+		
 		await fs.writeFile(metaPath, serializeJsonl(metaEntries), 'utf-8');
 
 		// Also update dataset.jsonl if entry exists
@@ -53,6 +66,20 @@ export const POST: APIRoute = async ({ request }) => {
 					speech: body.speech,
 					captionCaptureType: 'manual',
 				};
+				if (body.tag !== undefined) {
+					if (body.tag) {
+						datasetEntries[existingIndex].tag = body.tag;
+					} else {
+						delete datasetEntries[existingIndex].tag;
+					}
+				}
+				if (body.separateSpeechTag !== undefined) {
+					if (body.separateSpeechTag) {
+						datasetEntries[existingIndex].separateSpeechTag = body.separateSpeechTag;
+					} else {
+						delete datasetEntries[existingIndex].separateSpeechTag;
+					}
+				}
 				await fs.writeFile(datasetPath, serializeJsonl(datasetEntries), 'utf-8');
 			}
 		} catch {
