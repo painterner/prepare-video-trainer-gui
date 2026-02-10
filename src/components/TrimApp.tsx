@@ -76,6 +76,8 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 	const [batchRange, setBatchRange] = useState('');
 	const [isBatchProcessing, setIsBatchProcessing] = useState(false);
 	const [batchProgress, setBatchProgress] = useState('');
+	const [isRetrimming, setIsRetrimming] = useState(false);
+	const [retrimProgress, setRetrimProgress] = useState('');
 	const editorRef = useRef<HTMLDivElement>(null);
 	const videoContainerRef = useRef<HTMLDivElement>(null);
 	const listContainerRef = useRef<HTMLDivElement>(null);
@@ -720,6 +722,79 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 		setIsBatchProcessing(false);
 	};
 
+	// Batch re-trim all processed items to ensure stereo audio
+	const handleBatchRetrim = async () => {
+		if (!metaPath) {
+			setRetrimProgress('请先加载 dataset_meta.jsonl');
+			return;
+		}
+
+		setIsRetrimming(true);
+		setRetrimProgress('加载最新数据...');
+
+		// Fetch latest data to get current audio/video positions
+		let latestItems: MetaItem[];
+		try {
+			const res = await fetch(`/api/meta.json?path=${encodeURIComponent(metaPath)}`);
+			const data = await res.json();
+			latestItems = data.items || [];
+		} catch (error) {
+			setRetrimProgress('加载数据失败');
+			setIsRetrimming(false);
+			return;
+		}
+
+		const processedItems = latestItems.filter(item => item.processed);
+		if (processedItems.length === 0) {
+			setRetrimProgress('没有已处理的记录');
+			setIsRetrimming(false);
+			return;
+		}
+
+		setRetrimProgress(`0/${processedItems.length} 开始...`);
+
+		let successCount = 0;
+		for (let i = 0; i < latestItems.length; i++) {
+			const item = latestItems[i];
+			if (!item.processed) continue;
+
+			setRetrimProgress(`${successCount + 1}/${processedItems.length} #${i} 重新裁剪...`);
+
+			try {
+				const audioPos = item.processed_audio_pos as number[] | undefined;
+				const videoPos = item.processed_video_pos as number[] | undefined;
+				console.log(`Retrim #${i}: audioPos=`, audioPos, 'videoPos=', videoPos);
+
+				const res = await fetch('/api/trim.json', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						metaPath,
+						index: i,
+						refStart: audioPos ? audioPos[0] : 0,
+						refEnd: audioPos ? audioPos[1] : null,
+						videoStart: videoPos ? videoPos[0] : 0,
+						videoEnd: videoPos ? videoPos[1] : null,
+					}),
+				});
+
+				if (res.ok) {
+					successCount++;
+					setRetrimProgress(`${successCount}/${processedItems.length} #${i} ✓`);
+				} else {
+					setRetrimProgress(`${successCount}/${processedItems.length} #${i} 失败`);
+				}
+			} catch (error) {
+				setRetrimProgress(`${successCount}/${processedItems.length} #${i} 错误`);
+			}
+		}
+
+		setRetrimProgress(`完成 ${successCount}/${processedItems.length}`);
+		setIsRetrimming(false);
+		// Reload to refresh timestamps
+		await loadMeta();
+	};
+
 	// Close popover when clicking outside
 	useEffect(() => {
 		const handleClickOutside = (e: MouseEvent) => {
@@ -935,7 +1010,23 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 			</div>
 
 			{/* Right Panel - Media */}
-			<div className="flex-1 bg-[#141a26] border border-[#2a3244] rounded-xl p-4 overflow-hidden">
+			<div className="flex-1 bg-[#141a26] border border-[#2a3244] rounded-xl p-4 overflow-hidden relative">
+				{/* Re-trim button in top right corner */}
+				<div className="absolute top-2 right-2 z-10 flex items-center gap-2">
+					{retrimProgress && <span className="text-[10px] text-[#a9b2c3]">{retrimProgress}</span>}
+					<button
+						onClick={handleBatchRetrim}
+						disabled={isRetrimming || items.length === 0}
+						className={`px-2 py-1 text-[10px] rounded border ${
+							isRetrimming || items.length === 0
+								? 'border-[#2a3244] bg-[#1b2232] text-[#666] cursor-not-allowed'
+								: 'border-[#2a3244] bg-[#e74c3c] text-white hover:bg-[#c0392b] cursor-pointer'
+						}`}
+						title="重新裁剪所有已处理记录（确保双声道）"
+					>
+						{isRetrimming ? '处理中...' : '🔄 批量重裁'}
+					</button>
+				</div>
 				<div className="grid grid-cols-[1fr_320px] gap-4 h-full">
 					<div className="flex flex-col h-full overflow-hidden items-center">
 						<div 

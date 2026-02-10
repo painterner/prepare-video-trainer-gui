@@ -106,13 +106,14 @@ export const POST: APIRoute = async ({ request }) => {
 				sourcePath,
 				'-vn',
 				'-ac',
-				'1',
+				'2',
 				'-ar',
 				'44100',
 				'-b:a',
 				'192k',
 				audioOutPath,
 			];
+			console.log('cutting audio with args:', audioArgs.join(' '));
 			await runFfmpeg(audioArgs);
 		}
 
@@ -150,6 +151,8 @@ export const POST: APIRoute = async ({ request }) => {
 				'20',
 				'-c:a',
 				'aac',
+				'-ac',
+				'2',
 				'-b:a',
 				'192k',
 				videoOutput,
