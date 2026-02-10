@@ -692,14 +692,22 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 					continue;
 				}
 
-				// Update local state
-				const newItems = [...items];
-				newItems[idx] = { 
-					...newItems[idx], 
-					caption: captionData.caption,
-				};
-				(newItems[idx] as any).speech = whisperData.transcription;
-				setItems(newItems);
+				// Update local state immediately after each item
+				setItems(prevItems => {
+					const newItems = [...prevItems];
+					newItems[idx] = { 
+						...newItems[idx], 
+						caption: captionData.caption,
+					};
+					(newItems[idx] as any).speech = whisperData.transcription;
+					return newItems;
+				});
+
+				// If this is the currently selected item, update the input fields too
+				if (idx === currentIndex) {
+					setCaptionInput(captionData.caption || '');
+					setSpeechInput(whisperData.transcription || '');
+				}
 				
 				setBatchProgress(`${i + 1}/${indices.length} #${idx} ✓`);
 
@@ -710,8 +718,6 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 
 		setBatchProgress(`完成 ${indices.length}条`);
 		setIsBatchProcessing(false);
-		// Reload to get updated data
-		await loadMeta();
 	};
 
 	// Close popover when clicking outside
