@@ -94,6 +94,7 @@ export const POST: APIRoute = async ({ request }) => {
 		let audioOutPath: string | null = null;
 		
 		// Only process audio if valid range is set
+		let waveformImagePath: string | null = null;
 		if (hasAudioTrim) {
 			audioOutPath = path.join(audioDir, `${sourceStem}_ref.mp3`);
 			const audioArgs = [
@@ -115,6 +116,27 @@ export const POST: APIRoute = async ({ request }) => {
 			];
 			console.log('cutting audio with args:', audioArgs.join(' '));
 			await runFfmpeg(audioArgs);
+
+			// Generate waveform image using Python script
+			const waveformDir = path.join(baseDir, 'dataset_processed', 'waveform');
+			await fs.mkdir(waveformDir, { recursive: true });
+			waveformImagePath = path.join(waveformDir, `${sourceStem}_waveform.png`);
+			const scriptPath = path.join(baseDir, 'scripts', 'test_audio_to_image.py');
+			try {
+				await execFileAsync('python3', [scriptPath, audioOutPath, '--size', '512', '--sr', '16000'], { windowsHide: true });
+				// Move the generated waveform to the correct location
+				const generatedWaveform = path.join(audioDir, `${sourceStem}_ref_waveform.png`);
+				try {
+					await fs.rename(generatedWaveform, waveformImagePath);
+					console.log('Generated waveform:', waveformImagePath);
+				} catch {
+					// If rename fails, the file might already be in the right place or not exist
+					waveformImagePath = null;
+				}
+			} catch (waveformError) {
+				console.error('Waveform generation failed:', waveformError);
+				waveformImagePath = null;
+			}
 		}
 
 		let videoOutPath: string | null = null;
@@ -183,6 +205,7 @@ export const POST: APIRoute = async ({ request }) => {
 			caption: typeof entry.caption === 'string' ? entry.caption : '',
 			has_reference_audio: hasAudioTrim,
 			reference_audio_column: audioOutPath ? path.relative(baseDir, audioOutPath) : null,
+			reference_waveform_image_column: waveformImagePath ? path.relative(baseDir, waveformImagePath) : null,
 			reference_audio_pos: hasAudioTrim ? [Number(refStart.toFixed(3)), Number(refEnd.toFixed(3))] : null,
 			video_pos: typeof videoEnd === 'number' ? [Number(videoStart.toFixed(3)), Number(videoEnd.toFixed(3))] : null,
 			video_crop: body.crop ? { x: body.crop.x, y: body.crop.y, w: body.crop.w, h: body.crop.h } : null,

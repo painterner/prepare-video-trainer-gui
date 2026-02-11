@@ -78,6 +78,8 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 	const [batchProgress, setBatchProgress] = useState('');
 	const [isRetrimming, setIsRetrimming] = useState(false);
 	const [retrimProgress, setRetrimProgress] = useState('');
+	const [isGeneratingWaveforms, setIsGeneratingWaveforms] = useState(false);
+	const [waveformProgress, setWaveformProgress] = useState('');
 	const editorRef = useRef<HTMLDivElement>(null);
 	const videoContainerRef = useRef<HTMLDivElement>(null);
 	const listContainerRef = useRef<HTMLDivElement>(null);
@@ -795,6 +797,72 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 		await loadMeta();
 	};
 
+	// Batch generate waveforms for all processed items
+	const handleBatchWaveform = async () => {
+		if (!metaPath) {
+			setWaveformProgress('请先加载 dataset_meta.jsonl');
+			return;
+		}
+
+		setIsGeneratingWaveforms(true);
+		setWaveformProgress('加载数据...');
+
+		// Fetch latest data
+		let latestItems: MetaItem[];
+		try {
+			const res = await fetch(`/api/meta.json?path=${encodeURIComponent(metaPath)}`);
+			const data = await res.json();
+			latestItems = data.items || [];
+		} catch (error) {
+			setWaveformProgress('加载数据失败');
+			setIsGeneratingWaveforms(false);
+			return;
+		}
+
+		const processedItems = latestItems.filter(item => item.processed);
+		if (processedItems.length === 0) {
+			setWaveformProgress('没有已处理的记录');
+			setIsGeneratingWaveforms(false);
+			return;
+		}
+
+		setWaveformProgress(`0/${processedItems.length}`);
+
+		let successCount = 0;
+		let skippedCount = 0;
+		for (let i = 0; i < latestItems.length; i++) {
+			const item = latestItems[i];
+			if (!item.processed) continue;
+
+			setWaveformProgress(`${successCount + skippedCount + 1}/${processedItems.length} #${i}`);
+
+			try {
+				const res = await fetch('/api/batch-waveform.json', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ index: i }),
+				});
+
+				const data = await res.json();
+				if (res.ok) {
+					if (data.skipped) {
+						skippedCount++;
+					} else {
+						successCount++;
+					}
+					setWaveformProgress(`${successCount + skippedCount}/${processedItems.length} #${i} ✓`);
+				} else {
+					setWaveformProgress(`${successCount + skippedCount}/${processedItems.length} #${i} 失败`);
+				}
+			} catch (error) {
+				setWaveformProgress(`${successCount + skippedCount}/${processedItems.length} #${i} 错误`);
+			}
+		}
+
+		setWaveformProgress(`完成 ${successCount}新/${skippedCount}跳`);
+		setIsGeneratingWaveforms(false);
+	};
+
 	// Close popover when clicking outside
 	useEffect(() => {
 		const handleClickOutside = (e: MouseEvent) => {
@@ -1011,8 +1079,21 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 
 			{/* Right Panel - Media */}
 			<div className="flex-1 bg-[#141a26] border border-[#2a3244] rounded-xl p-4 overflow-hidden relative">
-				{/* Re-trim button in top right corner */}
+				{/* Batch buttons in top right corner */}
 				<div className="absolute top-2 right-2 z-10 flex items-center gap-2">
+					{waveformProgress && <span className="text-[10px] text-[#a9b2c3]">{waveformProgress}</span>}
+					<button
+						onClick={handleBatchWaveform}
+						disabled={isGeneratingWaveforms || items.length === 0}
+						className={`px-2 py-1 text-[10px] rounded border ${
+							isGeneratingWaveforms || items.length === 0
+								? 'border-[#2a3244] bg-[#1b2232] text-[#666] cursor-not-allowed'
+								: 'border-[#2a3244] bg-[#9b59b6] text-white hover:bg-[#8e44ad] cursor-pointer'
+						}`}
+						title="批量生成波形图"
+					>
+						{isGeneratingWaveforms ? '处理中...' : '📊 批量波形'}
+					</button>
 					{retrimProgress && <span className="text-[10px] text-[#a9b2c3]">{retrimProgress}</span>}
 					<button
 						onClick={handleBatchRetrim}
