@@ -961,7 +961,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 								: 'bg-[#9b59b6] text-white'
 						}`}
 					>
-						{isBatchProcessing ? '...' : '批处理'}
+						{isBatchProcessing ? '...' : '批量caption'}
 					</button>
 				</div>
 				{batchProgress && <div className="text-[10px] text-[#a9b2c3] truncate">{batchProgress}</div>}
