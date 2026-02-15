@@ -81,7 +81,7 @@ export const POST: APIRoute = async ({ request }) => {
 			throw new Error('请设置音频区间或视频区间');
 		}
 
-		const baseDir = path.dirname(metaPath);
+		const baseDir = path.dirname(`${metaPath}/../`);
 		const outputRoot = body.outputDir ? resolveInRoot(body.outputDir) : path.join(baseDir, 'dataset_processed');
 		const audioDir = path.join(outputRoot, 'audio');
 		const videoDir = path.join(outputRoot, 'video');
