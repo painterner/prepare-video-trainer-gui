@@ -68,6 +68,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 	const [previewInterval, setPreviewInterval] = useState<NodeJS.Timeout | null>(null);
 	const [captionInput, setCaptionInput] = useState('');
 	const [speechInput, setSpeechInput] = useState('');
+	const [roleInput, setRoleInput] = useState('');
 	const [currentTag, setCurrentTag] = useState('');
 	const [currentSeparateSpeechTag, setCurrentSeparateSpeechTag] = useState('');
 	const [showCaptionEditor, setShowCaptionEditor] = useState(false);
@@ -493,6 +494,31 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 			setSaveStatus(`语音分离 "${newTag || '无'}" 已保存`);
 		} catch (error: any) {
 			setSaveStatus(error.message || '保存标签失败');
+		}
+	};
+
+	const handleRoleSave = async () => {
+		if (currentIndex < 0 || !currentItem?.processed) {
+			setSaveStatus('请先处理条目');
+			return;
+		}
+		try {
+			const response = await fetch('/api/update-role.json', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					metaPath,
+					index: currentIndex,
+					role: roleInput.trim(),
+				}),
+			});
+			const data = await response.json();
+			if (!response.ok) {
+				throw new Error(data.error || '保存失败');
+			}
+			setSaveStatus('角色已保存');
+		} catch (error: any) {
+			setSaveStatus(error.message || '保存失败');
 		}
 	};
 
@@ -1323,6 +1349,22 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 							<>
 								<div className="text-xs text-[#a9b2c3] break-all">{currentItem.processed_audio_path}</div>
 								<audio controls src={`/api/media?path=${encodeURIComponent(currentItem.processed_audio_path)}`} className="w-full rounded-lg" />
+								<div className="flex gap-1.5 mt-1">
+									<input
+										type="text"
+										placeholder="角色名称 (回车保存)"
+										value={roleInput}
+										onChange={(e) => setRoleInput(e.target.value)}
+										onKeyDown={(e) => e.key === 'Enter' && handleRoleSave()}
+										className="flex-1 px-2 py-1 rounded text-xs border border-[#2a3244] bg-[#0b0f17] text-[#e7ecf3]"
+									/>
+									<button
+										onClick={handleRoleSave}
+										className="px-2 py-1 rounded text-xs bg-[#4f8cff] text-white hover:bg-[#3d7ce6]"
+									>
+										确定
+									</button>
+								</div>
 							</>
 							) : (
 								<div className="text-xs text-[#a9b2c3]">无</div>
