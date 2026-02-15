@@ -81,7 +81,7 @@ export const POST: APIRoute = async ({ request }) => {
 			throw new Error('请设置音频区间或视频区间');
 		}
 
-		const baseDir = path.dirname(`${metaPath}/../`);
+		const baseDir = path.dirname(`${metaPath}`);
 		const outputRoot = body.outputDir ? resolveInRoot(body.outputDir) : path.join(baseDir, 'dataset_processed');
 		const audioDir = path.join(outputRoot, 'audio');
 		const videoDir = path.join(outputRoot, 'video');
@@ -121,7 +121,7 @@ export const POST: APIRoute = async ({ request }) => {
 			const waveformDir = path.join(baseDir, 'dataset_processed', 'waveform');
 			await fs.mkdir(waveformDir, { recursive: true });
 			waveformImagePath = path.join(waveformDir, `${sourceStem}_waveform.png`);
-			const scriptPath = path.join(baseDir, 'scripts', 'test_audio_to_image.py');
+			const scriptPath = path.join(baseDir, '../scripts', 'test_audio_to_image.py');
 			try {
 				await execFileAsync('python3', [scriptPath, audioOutPath, '--size', '512', '--sr', '16000'], { windowsHide: true });
 				// Move the generated waveform to the correct location

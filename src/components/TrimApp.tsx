@@ -11,6 +11,7 @@ interface MetaItem {
 	processed_audio_path?: string;
 	processed_audio_pos?: [number, number];
 	processed_video_pos?: [number, number] | null;
+	processed_video_crop?: { x: number; y: number; w: number; h: number } | null;
 	tag?: string;
 	speech?: string;
 	separateSpeechTag?: string;
@@ -170,9 +171,15 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 		setSpeechInput((item as any).speech || '');
 		setCurrentTag(item.tag || '');
 		setCurrentSeparateSpeechTag(item.separateSpeechTag || '');
-		setCropRect(null); // Reset crop when changing item
+		
 		if (item.processed) {
 			setSaveStatus('已处理 - 显示处理后媒体');
+			// Load crop if exists
+			if (item.processed_video_crop) {
+				setCropRect(item.processed_video_crop);
+			} else {
+				setCropRect(null);
+			}
 			if (item.processed_audio_pos && Array.isArray(item.processed_audio_pos)) {
 				setRefStart(item.processed_audio_pos[0].toFixed(2));
 				setRefEnd(item.processed_audio_pos[1].toFixed(2));
@@ -235,11 +242,16 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 				setSpeechInput(item.speech || '');
 				setCurrentTag(item.tag || '');
 				setCurrentSeparateSpeechTag(item.separateSpeechTag || '');
-				setCropRect(null);
 				setVideoStartManuallySet(false);
 				setVideoEndManuallySet(false);
 				if (item.processed) {
 					setSaveStatus('已处理 - 显示处理后媒体');
+					// Load crop if exists
+					if (item.processed_video_crop) {
+						setCropRect(item.processed_video_crop);
+					} else {
+						setCropRect(null);
+					}
 					if (item.processed_audio_pos && Array.isArray(item.processed_audio_pos)) {
 						setRefStart(item.processed_audio_pos[0].toFixed(2));
 						setRefEnd(item.processed_audio_pos[1].toFixed(2));
