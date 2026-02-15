@@ -19,7 +19,7 @@ const defaultMetaPath = import.meta.env.DATASET_META_PATH ?? "/home/ka/all-ref/M
 			<input
 				type="text"
 				id="download-url"
-				placeholder="输入视频 URL"
+				placeholder="输入视频 URL 或文件夹路径"
 				class="flex-1 max-w-md px-2.5 py-1.5 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3] text-sm"
 			/>
 			<input
@@ -38,7 +38,7 @@ const defaultMetaPath = import.meta.env.DATASET_META_PATH ?? "/home/ka/all-ref/M
 				id="download-btn"
 				class="px-3 py-1.5 rounded-lg bg-[#4f8cff] text-white text-sm cursor-pointer"
 			>
-				下载
+				导入/下载
 			</button>
 			<span id="download-status" class="text-[#a9b2c3] text-xs"></span>
 		</header>
@@ -52,10 +52,10 @@ const defaultMetaPath = import.meta.env.DATASET_META_PATH ?? "/home/ka/all-ref/M
 			downloadBtn?.addEventListener('click', async () => {
 				const url = downloadUrl?.value?.trim();
 				if (!url) {
-					if (downloadStatus) downloadStatus.textContent = '请输入 URL';
+					if (downloadStatus) downloadStatus.textContent = '请输入 URL 或路径';
 					return;
 				}
-				if (downloadStatus) downloadStatus.textContent = '下载中...';
+				if (downloadStatus) downloadStatus.textContent = '处理中...';
 				try {
 					const payload: Record<string, string> = { url };
 					const startTime = downloadStart?.value?.trim();
@@ -70,14 +70,18 @@ const defaultMetaPath = import.meta.env.DATASET_META_PATH ?? "/home/ka/all-ref/M
 					});
 					const data = await response.json();
 					if (!response.ok) {
-						throw new Error(data.error || '下载失败');
+						throw new Error(data.error || '操作失败');
 					}
-					if (downloadStatus) downloadStatus.textContent = `已下载: ${data.filename}`;
+					if (data.type === 'import') {
+						if (downloadStatus) downloadStatus.textContent = data.message;
+					} else {
+						if (downloadStatus) downloadStatus.textContent = `已下载: ${data.filename}`;
+					}
 					downloadUrl.value = '';
 					downloadStart.value = '';
 					downloadEnd.value = '';
 				} catch (error: any) {
-					if (downloadStatus) downloadStatus.textContent = error.message || '下载失败';
+					if (downloadStatus) downloadStatus.textContent = error.message || '操作失败';
 				}
 			});
 		</script>

@@ -25,6 +25,8 @@ const YTDLP_HOSTS = [
 	'twitter.com', 'x.com', 'tiktok.com', 'vimeo.com',
 ];
 
+const VIDEO_EXTENSIONS = ['.mp4', '.mkv', '.avi', '.mov', '.webm', '.flv', '.wmv', '.m4v'];
+
 function isYtdlpUrl(url: string): boolean {
 	try {
 		const parsed = new URL(url);
@@ -32,6 +34,10 @@ function isYtdlpUrl(url: string): boolean {
 	} catch {
 		return false;
 	}
+}
+
+function isUrl(str: string): boolean {
+	return str.startsWith('http://') || str.startsWith('https://');
 }
 
 // Parse time string like "1:30" or "90" to seconds
@@ -128,14 +134,85 @@ async function downloadWithFetch(url: string, downloadDir: string, startTime?: s
 	return filePath;
 }
 
+async function importFromFolder(folderPath: string): Promise<{ count: number; files: string[] }> {
+	const dataDir = path.join(ALLOWED_ROOT, 'data');
+	const absolutePath = path.isAbsolute(folderPath) ? folderPath : path.join(ALLOWED_ROOT, folderPath);
+	
+	// Check if path exists and is a directory
+	const stat = await fs.stat(absolutePath);
+	if (!stat.isDirectory()) {
+		throw new Error('Path is not a directory');
+	}
+
+	// Read all files in directory
+	const files = await fs.readdir(absolutePath);
+	const videoFiles: string[] = [];
+
+	for (const file of files) {
+		const ext = path.extname(file).toLowerCase();
+		if (VIDEO_EXTENSIONS.includes(ext)) {
+			const fullPath = path.join(absolutePath, file);
+			videoFiles.push(fullPath);
+		}
+	}
+
+	if (videoFiles.length === 0) {
+		throw new Error('No video files found in directory');
+	}
+
+	// Load existing dataset_meta.jsonl
+	const datasetPath = path.join(dataDir, 'dataset_meta.jsonl');
+	let entries: DatasetEntry[] = [];
+	try {
+		const text = await fs.readFile(datasetPath, 'utf-8');
+		entries = parseJsonl<DatasetEntry>(text);
+	} catch {
+		// File doesn't exist yet
+	}
+
+	// Add each video file as a new entry
+	for (const filePath of videoFiles) {
+		const relativePath = path.relative(dataDir, filePath);
+		const newEntry: DatasetEntry = {
+			media_path: relativePath,
+			caption: '',
+		};
+		entries.push(newEntry);
+	}
+
+	// Write updated dataset_meta.jsonl
+	await fs.writeFile(datasetPath, serializeJsonl(entries), 'utf-8');
+
+	return { 
+		count: videoFiles.length, 
+		files: videoFiles.map(f => path.relative(dataDir, f)) 
+	};
+}
+
 export const POST: APIRoute = async ({ request }) => {
 	try {
 		const body = (await request.json()) as DownloadRequest;
 		const url = body.url?.trim();
 		if (!url) {
-			throw new Error('Missing URL');
+			throw new Error('Missing URL or path');
 		}
 
+		// Check if input is a URL or local path
+		if (!isUrl(url)) {
+			// Treat as local folder path
+			const result = await importFromFolder(url);
+			return new Response(
+				JSON.stringify({
+					type: 'import',
+					count: result.count,
+					files: result.files,
+					message: `已导入 ${result.count} 个视频文件`,
+				}),
+				{ headers: { 'Content-Type': 'application/json' } }
+			);
+		}
+
+		// Original URL download logic
 		const downloadDir = path.join(ALLOWED_ROOT, 'data', 'downloads');
 		await fs.mkdir(downloadDir, { recursive: true });
 
