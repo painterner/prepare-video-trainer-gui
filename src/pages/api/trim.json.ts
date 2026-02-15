@@ -197,6 +197,9 @@ export const POST: APIRoute = async ({ request }) => {
 		const processedAudioHash = audioOutPath ? await computeFileHash(audioOutPath) : null;
 		const processedVideoHash = videoOutPath ? await computeFileHash(videoOutPath) : null;
 
+		// 查找是否已存在相同 meta_index 的记录，以保留 role 等字段
+		const existingEntry = existingEntries.find((e) => e.meta_index === body.index);
+
 		const outputEntry: Record<string, unknown> = {
 			meta_index: body.index,
 			media_path: videoOutPath
@@ -212,6 +215,8 @@ export const POST: APIRoute = async ({ request }) => {
 			origin_video_hash: originVideoHash,
 			processed_audio_hash: processedAudioHash,
 			processed_video_hash: processedVideoHash,
+			// 保留已存在的 role 字段
+			role: existingEntry?.role || null,
 		};
 
 		// 查找是否已存在相同 meta_index 的记录，存在则更新，不存在则追加

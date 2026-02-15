@@ -12,6 +12,7 @@ interface MetaItem {
 	processed_audio_pos?: [number, number];
 	processed_video_pos?: [number, number] | null;
 	processed_video_crop?: { x: number; y: number; w: number; h: number } | null;
+	role?: string | null;
 	tag?: string;
 	speech?: string;
 	separateSpeechTag?: string;
@@ -171,6 +172,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 		setSpeechInput((item as any).speech || '');
 		setCurrentTag(item.tag || '');
 		setCurrentSeparateSpeechTag(item.separateSpeechTag || '');
+		setRoleInput(item.role || '');
 		
 		if (item.processed) {
 			setSaveStatus('已处理 - 显示处理后媒体');
@@ -242,6 +244,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 				setSpeechInput(item.speech || '');
 				setCurrentTag(item.tag || '');
 				setCurrentSeparateSpeechTag(item.separateSpeechTag || '');
+				setRoleInput(item.role || '');
 				setVideoStartManuallySet(false);
 				setVideoEndManuallySet(false);
 				if (item.processed) {
