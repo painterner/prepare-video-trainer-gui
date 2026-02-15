@@ -197,6 +197,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 			}
 		} else {
 			setSaveStatus('就绪');
+			setCropRect(null);
 			setRefStart('0');
 			setRefEnd('');
 			setVideoStart('');
@@ -270,6 +271,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 					}
 				} else {
 					setSaveStatus('就绪');
+					setCropRect(null);
 					setRefStart('0');
 					setRefEnd('');
 					setVideoStart('');
