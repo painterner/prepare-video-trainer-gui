@@ -17,6 +17,7 @@ type DatasetEntry = {
 	caption?: string;
 	reference_audio_column?: string;
 	reference_audio_pos?: [number, number];
+	reference_waveform_image_column?: string;
 	video_pos?: [number, number] | null;
 	video_crop?: { x: number; y: number; w: number; h: number } | null;
 	[Key: string]: unknown;
@@ -72,6 +73,10 @@ export const GET: APIRoute = async ({ url }) => {
 				processed_video_pos: isProcessed && processedData?.video_pos ? processedData.video_pos : null,
 				processed_video_crop: isProcessed && processedData?.video_crop ? processedData.video_crop : null,
 				role: isProcessed && processedData?.role ? processedData.role : null,
+				processed_waveform_path:
+					isProcessed && processedData?.reference_waveform_image_column
+						? resolveMediaPath(metaPath, processedData.reference_waveform_image_column)
+						: null,
 			};
 		});
 
