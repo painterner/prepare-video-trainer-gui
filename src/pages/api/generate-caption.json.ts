@@ -47,11 +47,11 @@ export const POST: APIRoute = async ({ request }) => {
 					//         需要注意的是，你的输出文字语言应该和视频中的语言一致。如果视频中没有语言，那么请用英文输出。`,
 					prompt: `Describe this video. Format As below:
 							[Overview] Describe this video overview, include the visual part and the audio part(what the role say...).
-							[SPEECH]: Word-for-word transcription of explicit spoken content (注意描述Overview的时候也要展现出来人物之间的spoken content, 不省略, 这里重复写出speech内容是为了更好的独立观察speech)
-							[BACKGROUND SPEECH] 背景的spoken content, 比如叫卖声，背景人物的窃窃私语等.
+							[SPEECH]: Word-for-word transcription of explicit spoken content (When providing an overview, be sure to include the spoken content between characters without omission. Repeating the speech verbatim here is for the purpose of better independent observation of the dialogue.)
+							[BACKGROUND SPEECH] Background spoken content, such as street vendor cries, background characters whispering, etc.
 							[SOUNDS]: Description of music, ambient sounds, sound effects。
 							[TEXT] Any on-screen text visible
-					        需要注意的是，你的输出文字语言应该和视频中的语言一致。如果视频中没有语言，那么请用英文输出。`,
+					        Please note that the language of your output text should match the language used in the video. By default, please output in English.`,
 					videos: [`data:${mimeType};base64,${videoBase64}`],
 				},
 			}),

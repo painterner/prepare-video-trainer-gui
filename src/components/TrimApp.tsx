@@ -162,6 +162,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 			setLoadStatus(error.message || '加载失败');
 		}
 	};
+	const loadMetaOnClick = () => loadMeta();
 
 	const selectIndex = (index: number) => {
 		if (index < 0 || index >= items.length) return;
@@ -1043,7 +1044,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 						onChange={(e) => setMetaPath(e.target.value)}
 						className="flex-1 px-2 py-1.5 rounded-lg border border-[#2a3244] bg-[#1b2232] text-[#e7ecf3] text-sm"
 					/>
-					<button onClick={loadMeta} className="px-2 py-1.5 rounded-lg bg-[#4f8cff] text-white text-xs">
+					<button onClick={loadMetaOnClick} className="px-2 py-1.5 rounded-lg bg-[#4f8cff] text-white text-xs">
 						加载
 					</button>
 				</div>
