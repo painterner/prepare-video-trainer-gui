@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import HighlightedEditor from './HighlightedEditor';
+import WaveformModal from './WaveformModal';
 
 interface MetaItem {
 	meta_index: number;
@@ -1422,33 +1423,10 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 
 			{/* Waveform Modal */}
 			{showWaveformModal && currentItem?.processed_waveform_path && (
-				<div
-					className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
-					onClick={() => setShowWaveformModal(false)}
-				>
-					<div
-						className="relative bg-[#1b2232] rounded-xl shadow-2xl border border-[#2a3244] p-4 max-w-2xl w-full mx-4"
-						onClick={(e) => e.stopPropagation()}
-					>
-						<div className="flex items-center justify-between mb-3">
-							<div className="text-sm text-[#e7ecf3] font-medium">📊 处理后音频波形</div>
-							<button
-								onClick={() => setShowWaveformModal(false)}
-								className="px-2 py-1 rounded text-xs bg-[#2a3244] text-[#a9b2c3] hover:bg-[#3d4a63] hover:text-white"
-							>
-								✕ 关闭
-							</button>
-						</div>
-						<div className="rounded-lg overflow-hidden border border-[#2a3244]">
-							<img
-								src={`/api/media?path=${encodeURIComponent(currentItem.processed_waveform_path)}`}
-								alt="处理后音频波形"
-								className="w-full h-auto bg-black"
-							/>
-						</div>
-						<div className="mt-2 text-xs text-[#6b7a90] break-all">{currentItem.processed_waveform_path}</div>
-					</div>
-				</div>
+				<WaveformModal
+					waveformPath={currentItem.processed_waveform_path}
+					onClose={() => setShowWaveformModal(false)}
+				/>
 			)}
 		</div>
 	);
