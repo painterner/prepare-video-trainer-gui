@@ -121,8 +121,9 @@ export const POST: APIRoute = async ({ request }) => {
 			const waveformDir = path.join(baseDir, 'dataset_processed', 'waveform');
 			await fs.mkdir(waveformDir, { recursive: true });
 			waveformImagePath = path.join(waveformDir, `${sourceStem}_${body.index}_waveform.png`);
-			const scriptPath = path.join(baseDir, '../scripts', 'test_audio_to_image.py');
+			const scriptPath = path.join('scripts', 'test_audio_to_image.py');
 			try {
+				console.log('Generating waveform with script:', scriptPath);
 				await execFileAsync('python3', [scriptPath, audioOutPath, '--size', '512', '--sr', '16000'], { windowsHide: true });
 				// Move the generated waveform to the correct location
 				const generatedWaveform = path.join(audioDir, `${sourceStem}_${body.index}_ref_waveform.png`);
