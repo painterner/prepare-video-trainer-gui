@@ -646,8 +646,8 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 			if (!response.ok) {
 				throw new Error(data.error || '复制失败');
 			}
-			// Reload to get new items
-			await loadMeta();
+			// Reload to get new items and select the newly copied item
+			await loadMetaWithPath(metaPath, data.newIndex);
 			setSaveStatus(`已复制到 #${data.newIndex}`);
 		} catch (error: any) {
 			setSaveStatus(error.message || '复制失败');

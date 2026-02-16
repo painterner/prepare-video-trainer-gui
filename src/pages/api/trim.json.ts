@@ -96,7 +96,7 @@ export const POST: APIRoute = async ({ request }) => {
 		// Only process audio if valid range is set
 		let waveformImagePath: string | null = null;
 		if (hasAudioTrim) {
-			audioOutPath = path.join(audioDir, `${sourceStem}_ref.mp3`);
+			audioOutPath = path.join(audioDir, `${sourceStem}_${body.index}_ref.mp3`);
 			const audioArgs = [
 				'-y',
 				'-ss',
@@ -120,12 +120,12 @@ export const POST: APIRoute = async ({ request }) => {
 			// Generate waveform image using Python script
 			const waveformDir = path.join(baseDir, 'dataset_processed', 'waveform');
 			await fs.mkdir(waveformDir, { recursive: true });
-			waveformImagePath = path.join(waveformDir, `${sourceStem}_waveform.png`);
+			waveformImagePath = path.join(waveformDir, `${sourceStem}_${body.index}_waveform.png`);
 			const scriptPath = path.join(baseDir, '../scripts', 'test_audio_to_image.py');
 			try {
 				await execFileAsync('python3', [scriptPath, audioOutPath, '--size', '512', '--sr', '16000'], { windowsHide: true });
 				// Move the generated waveform to the correct location
-				const generatedWaveform = path.join(audioDir, `${sourceStem}_ref_waveform.png`);
+				const generatedWaveform = path.join(audioDir, `${sourceStem}_${body.index}_ref_waveform.png`);
 				try {
 					await fs.rename(generatedWaveform, waveformImagePath);
 					console.log('Generated waveform:', waveformImagePath);
@@ -140,12 +140,11 @@ export const POST: APIRoute = async ({ request }) => {
 		}
 
 		let videoOutPath: string | null = null;
+		const videoFilters: string[] = [];
 		if (typeof videoEnd === 'number') {
-			const videoOutput = path.join(videoDir, `${sourceStem}_trim.mp4`);
+			const videoOutput = path.join(videoDir, `${sourceStem}_${body.index}_trimmed.mp4`);
 			videoOutPath = videoOutput;
-			
-			// Build video filter for crop if specified
-			const videoFilters: string[] = [];
+		
 			if (body.crop && body.crop.w > 0 && body.crop.h > 0) {
 				videoFilters.push(`crop=${body.crop.w}:${body.crop.h}:${body.crop.x}:${body.crop.y}`);
 			}
@@ -200,6 +199,9 @@ export const POST: APIRoute = async ({ request }) => {
 		// 查找是否已存在相同 meta_index 的记录，以保留 role 等字段
 		const existingEntry = existingEntries.find((e) => e.meta_index === body.index);
 
+		console.log('Output paths:', {
+			video: videoOutPath,
+		});
 		const outputEntry: Record<string, unknown> = {
 			meta_index: body.index,
 			media_path: videoOutPath
