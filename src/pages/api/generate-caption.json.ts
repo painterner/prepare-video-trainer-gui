@@ -46,12 +46,28 @@ export const POST: APIRoute = async ({ request }) => {
 					// prompt: `Describe this video (include audio) overview. For example: An old man is feeding pigeons in a park. He's wearing a blue coat and a hat and looks very happy. A little girl in a red dress is playing nearby. The background is a sunny day with lush trees and birds singing. The old man says in a trembling voice, "Come on, have something to eat." Suddenly, a pigeon speaks, saying in a sharp voice, "You liar!" The old man is startled, takes a step back, raises his eyebrows in horror, and says, "Huh? You can talk?" \n
 					//         需要注意的是，你的输出文字语言应该和视频中的语言一致。如果视频中没有语言，那么请用英文输出。`,
 					prompt: `Describe this video. Format As below:
-							[Overview] Describe this video overview, include the visual part and the audio part(what the role say...).
-							[SPEECH]: Word-for-word transcription of explicit spoken content (When providing an overview, be sure to include the spoken content between characters without omission. Repeating the speech verbatim here is for the purpose of better independent observation of the dialogue.)
+							[OVERVIEW] Describe this video overview, include the visual part and the audio part(what the role say...).
+							[SPEECH]: Extracted from [OVERVIEW],Word-for-word transcription of explicit spoken content.
+							[SPEECH ROLES]: The list of role names, ranked by the importance of their lines. The role with the most lines should be listed first. 
 							[BACKGROUND SPEECH] Background spoken content, such as street vendor cries, background characters whispering, etc.
 							[SOUNDS]: Description of music, ambient sounds, sound effects。
 							[TEXT] Any on-screen text visible
-					        Please note that the language of your output text should match the language used in the video. By default, please output in English.`,
+							[AUDIENCE LANGUAGE]: the language of the video's target audience.
+							[DIALOGUE LANGUAGE]: the language spoken by the characters in the video.
+							
+							Note: Distinguish between the [AUDIENCE LANGUAGE] and [DIALOGUE LANGUAGE].
+							Example output:
+								[OVERVIEW]: A girl is sitting in a cafe, wearing a red ....,  she is saying to a waiter "我想要一杯咖啡", the waiter is saying "好的, 请稍等"
+								[SPEECH]: 
+									- 00:03 Girl: "我想要一杯咖啡" 
+									- 00:05 Waiter: "好的, 请稍等"
+								[SPEECH ROLES]: Girl, Waiter
+								[BACKGROUND SPEECH]: None
+								...
+								[AUDIENCE LANGUAGE]: English
+								[DIALOGUE LANGUAGE]: Chinese
+							From the example, we can see that the [AUDIENCE LANGUAGE] is English, and the [DIALOGUE LANGUAGE] is Chinese. So the [OVERVIEW] should be described both in English and Chinese text (the dialogue part).
+							`,
 					videos: [`data:${mimeType};base64,${videoBase64}`],
 				},
 			}),

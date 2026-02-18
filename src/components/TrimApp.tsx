@@ -171,6 +171,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 		setVideoStartManuallySet(false);
 		setVideoEndManuallySet(false);
 		setShowWaveformModal(false);
+		setVideoSize({ width: 0, height: 0 }); // 强制重置，等待 onLoadedMetadata 重新设置
 
 		const item = items[index];
 		setCaptionInput(item.caption || '');
@@ -178,7 +179,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 		setCurrentTag(item.tag || '');
 		setCurrentSeparateSpeechTag(item.separateSpeechTag || '');
 		setRoleInput(item.role || '');
-		
+    
 		if (item.processed) {
 			setSaveStatus('已处理 - 显示处理后媒体');
 			// Load crop if exists
