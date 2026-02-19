@@ -598,11 +598,15 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 				throw new Error(data.error || '生成失败');
 			}
 			setCaptionInput(data.caption);
-			// Update local state
+			// Update local state with caption and role
 			const newItems = [...items];
 			newItems[currentIndex] = { ...newItems[currentIndex], caption: data.caption };
+			if (data.role) {
+				newItems[currentIndex].role = data.role;
+				setRoleInput(data.role);
+			}
 			setItems(newItems);
-			setSaveStatus('AI caption 已生成并保存');
+			setSaveStatus(`AI caption 已生成并保存${data.role ? ` (角色: ${data.role})` : ''}`);
 		} catch (error: any) {
 			setSaveStatus(error.message || '生成 caption 失败');
 		} finally {
@@ -757,6 +761,9 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 						...newItems[idx], 
 						caption: captionData.caption,
 					};
+					if (captionData.role) {
+						newItems[idx].role = captionData.role;
+					}
 					(newItems[idx] as any).speech = whisperData.transcription;
 					return newItems;
 				});
@@ -765,6 +772,9 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 				if (idx === currentIndex) {
 					setCaptionInput(captionData.caption || '');
 					setSpeechInput(whisperData.transcription || '');
+					if (captionData.role) {
+						setRoleInput(captionData.role);
+					}
 				}
 				
 				setBatchProgress(`${i + 1}/${indices.length} #${idx} ✓`);

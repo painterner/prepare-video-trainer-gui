@@ -45,28 +45,39 @@ export const POST: APIRoute = async ({ request }) => {
 				input: {
 					// prompt: `Describe this video (include audio) overview. For example: An old man is feeding pigeons in a park. He's wearing a blue coat and a hat and looks very happy. A little girl in a red dress is playing nearby. The background is a sunny day with lush trees and birds singing. The old man says in a trembling voice, "Come on, have something to eat." Suddenly, a pigeon speaks, saying in a sharp voice, "You liar!" The old man is startled, takes a step back, raises his eyebrows in horror, and says, "Huh? You can talk?" \n
 					//         需要注意的是，你的输出文字语言应该和视频中的语言一致。如果视频中没有语言，那么请用英文输出。`,
-					prompt: `Describe this video. Format As below:
-							[OVERVIEW] Describe this video overview, include the visual part and the audio part(what the role say...).
+					prompt: `
+							Here is a sample output format for the task of describing a video as formatted text:
+							[OVERVIEW]: 一个女孩坐在咖啡厅，身穿..., 对一个服务员说"我想要一杯咖啡", 服务员说"好的, 请稍等"
+							[SPEECH]: 
+								- 00:03 女孩: "我想要一杯咖啡" 
+								- 00:05 服务员: "好的, 请稍等"
+							[SPEECH ROLES]: 女孩, 服务员
+							[BACKGROUND SPEECH]: None
+							...
+							[AUDIENCE LANGUAGE]: Chinese
+							[DIALOGUE LANGUAGE]: Chinese
+
+							Another example:
+							[OVERVIEW]: A man is walking down the street,... He sees a dog and says "What a cute dog!"
+							[SPEECH ROLES]: man
+							...
+							[AUDIENCE LANGUAGE]: English
+							[DIALOGUE LANGUAGE]: English
+
+							Where:
+							[OVERVIEW] Describe this video overview in the [AUDIENCE LANGUAGE] language, include the visual part and the audio part(what the role say...).
 							[SPEECH]: Extracted from [OVERVIEW],Word-for-word transcription of explicit spoken content.
 							[SPEECH ROLES]: The list of role names, ranked by the importance of their lines. The role with the most lines should be listed first. 
 							[BACKGROUND SPEECH] Background spoken content, such as street vendor cries, background characters whispering, etc.
 							[SOUNDS]: Description of music, ambient sounds, sound effects。
 							[TEXT] Any on-screen text visible
-							[AUDIENCE LANGUAGE]: the language of the video's target audience.
-							[DIALOGUE LANGUAGE]: the language spoken by the characters in the video.
-							
+							[AUDIENCE LANGUAGE]: the language of the video's target audience
+							[DIALOGUE LANGUAGE]: the language spoken by the characters in the video
+
 							Note: Distinguish between the [AUDIENCE LANGUAGE] and [DIALOGUE LANGUAGE].
-							Example output:
-								[OVERVIEW]: A girl is sitting in a cafe, wearing a red ....,  she is saying to a waiter "我想要一杯咖啡", the waiter is saying "好的, 请稍等"
-								[SPEECH]: 
-									- 00:03 Girl: "我想要一杯咖啡" 
-									- 00:05 Waiter: "好的, 请稍等"
-								[SPEECH ROLES]: Girl, Waiter
-								[BACKGROUND SPEECH]: None
-								...
-								[AUDIENCE LANGUAGE]: English
-								[DIALOGUE LANGUAGE]: Chinese
-							From the example, we can see that the [AUDIENCE LANGUAGE] is English, and the [DIALOGUE LANGUAGE] is Chinese. So the [OVERVIEW] should be described both in English and Chinese text (the dialogue part).
+							It must be determined based on the video content, characters, scenes, etc., to accurately identify the video's target audience and decide the [AUDIENCE LANGUAGE].
+							
+							Describe this video. Format As above:
 							`,
 					videos: [`data:${mimeType};base64,${videoBase64}`],
 				},
@@ -113,6 +124,19 @@ export const POST: APIRoute = async ({ request }) => {
 
 		console.log("Generated caption:", caption);
 
+		// Parse [SPEECH ROLES] to extract the first role
+		let firstRole: string | null = null;
+		const rolesMatch = caption.match(/\[SPEECH\s*ROLES\]\s*:?\s*(.+)/i);
+		if (rolesMatch) {
+			const rolesLine = rolesMatch[1].trim();
+			// Split by comma, take first non-empty role, strip surrounding whitespace/quotes
+			const roles = rolesLine.split(/[,，]/).map((r: string) => r.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+			if (roles.length > 0 && roles[0].toLowerCase() !== 'none' && roles[0].toLowerCase() !== 'n/a') {
+				firstRole = roles[0];
+			}
+		}
+		console.log("Parsed first role:", firstRole);
+
 		// Save caption to dataset_meta.jsonl and dataset.jsonl
 		const metaPath = resolveMetaPath(body.metaPath);
 		const metaText = await fs.readFile(metaPath, 'utf-8');
@@ -140,6 +164,7 @@ export const POST: APIRoute = async ({ request }) => {
 						...datasetEntries[existingIndex],
 						caption,
 						captionCaptureType: 'ai',
+						...(firstRole != null ? { role: firstRole } : {}),
 					};
 					await fs.writeFile(datasetPath, serializeJsonl(datasetEntries), 'utf-8');
 				}
@@ -149,7 +174,7 @@ export const POST: APIRoute = async ({ request }) => {
 		}
 
 		return new Response(
-			JSON.stringify({ caption }),
+			JSON.stringify({ caption, role: firstRole }),
 			{ headers: { 'Content-Type': 'application/json' } }
 		);
 	} catch (error) {
