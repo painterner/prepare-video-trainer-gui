@@ -1154,7 +1154,7 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 								? 'border-[#2a3244] bg-[#1b2232] text-[#666] cursor-not-allowed'
 								: 'border-[#2a3244] bg-[#9b59b6] text-white hover:bg-[#8e44ad] cursor-pointer'
 						}`}
-						title="批量生成波形图"
+					title="批量生成波形图"
 					>
 						{isGeneratingWaveforms ? '处理中...' : '📊 批量波形'}
 					</button>
@@ -1167,9 +1167,31 @@ export default function TrimApp({ defaultMetaPath }: TrimAppProps) {
 								? 'border-[#2a3244] bg-[#1b2232] text-[#666] cursor-not-allowed'
 								: 'border-[#2a3244] bg-[#e74c3c] text-white hover:bg-[#c0392b] cursor-pointer'
 						}`}
-						title="重新裁剪所有已处理记录（确保双声道）"
+					title="重新裁剪所有已处理记录（确保双声道）"
 					>
 						{isRetrimming ? '处理中...' : '🔄 批量重裁'}
+					</button>
+
+					{/* 后处理按钮 */}
+					<button
+						onClick={async () => {
+						try {
+							const resp = await fetch('/api/post-process.json', { method: 'POST' });
+							const data = await resp.json();
+							if (data.success) {
+								alert(`后处理完成，已生成 dataset_post_processed.jsonl (共${data.count}条)`);
+							} else {
+								alert('后处理失败：' + (data.error || '未知错误'));
+							}
+						} catch (e) {
+							alert('后处理异常：' + (e as any).message);
+						}
+					}}
+						disabled={items.length === 0}
+						className="px-2 py-1 text-[10px] rounded border border-[#2a3244] bg-[#48c78e] text-white hover:bg-[#36a169] cursor-pointer"
+						title="将所有caption和role合成新caption，生成dataset_post_processed.jsonl"
+					>
+						🛠 后处理
 					</button>
 				</div>
 				<div className="grid grid-cols-[1fr_320px] gap-4 h-full">

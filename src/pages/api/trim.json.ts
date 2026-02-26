@@ -171,6 +171,8 @@ export const POST: APIRoute = async ({ request }) => {
 				'veryfast',
 				'-crf',
 				'20',
+				'-r',
+				'25',
 				'-c:a',
 				'aac',
 				'-ac',
