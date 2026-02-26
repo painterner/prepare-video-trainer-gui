@@ -170,22 +170,32 @@ async function importFromFolder(folderPath: string): Promise<{ count: number; fi
 		// File doesn't exist yet
 	}
 
-	// Add each video file as a new entry
+	// Build a set of existing media_path values for dedup
+	const existingPaths = new Set(entries.map(e => e.media_path));
+
+	// Add each video file as a new entry (skip duplicates)
+	const addedFiles: string[] = [];
 	for (const filePath of videoFiles) {
 		const relativePath = path.relative(dataDir, filePath);
+		if (existingPaths.has(relativePath)) {
+			continue; // skip duplicate
+		}
 		const newEntry: DatasetEntry = {
 			media_path: relativePath,
 			caption: '',
 		};
 		entries.push(newEntry);
+		addedFiles.push(relativePath);
+		existingPaths.add(relativePath);
 	}
 
 	// Write updated dataset_meta.jsonl
 	await fs.writeFile(datasetPath, serializeJsonl(entries), 'utf-8');
 
 	return { 
-		count: videoFiles.length, 
-		files: videoFiles.map(f => path.relative(dataDir, f)) 
+		count: addedFiles.length,
+		total: videoFiles.length,
+		files: addedFiles,
 	};
 }
 
@@ -201,12 +211,15 @@ export const POST: APIRoute = async ({ request }) => {
 		if (!isUrl(url)) {
 			// Treat as local folder path
 			const result = await importFromFolder(url);
+			const skipped = result.total - result.count;
+			const skipMsg = skipped > 0 ? `，跳过 ${skipped} 个已存在文件` : '';
 			return new Response(
 				JSON.stringify({
 					type: 'import',
 					count: result.count,
+					skipped,
 					files: result.files,
-					message: `已导入 ${result.count} 个视频文件`,
+					message: `已导入 ${result.count} 个视频文件${skipMsg}`,
 				}),
 				{ headers: { 'Content-Type': 'application/json' } }
 			);
@@ -236,14 +249,18 @@ export const POST: APIRoute = async ({ request }) => {
 		}
 
 		const relativePath = path.relative(path.join(ALLOWED_ROOT, 'data'), filePath);
-		const newEntry: DatasetEntry = {
-			media_path: relativePath,
-			caption: '',
-			source_url: url,
-			download_range: (body.startTime || body.endTime) ? { start: body.startTime || '0', end: body.endTime || 'end' } : undefined,
-		};
 
-		entries.push(newEntry);
+		// Check for duplicate by media_path
+		const alreadyExists = entries.some(e => e.media_path === relativePath);
+		if (!alreadyExists) {
+			const newEntry: DatasetEntry = {
+				media_path: relativePath,
+				caption: '',
+				source_url: url,
+				download_range: (body.startTime || body.endTime) ? { start: body.startTime || '0', end: body.endTime || 'end' } : undefined,
+			};
+			entries.push(newEntry);
+		}
 		await fs.writeFile(datasetPath, serializeJsonl(entries), 'utf-8');
 
 		return new Response(
